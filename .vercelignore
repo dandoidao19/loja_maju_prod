@@ -1,0 +1,13 @@
+# Arquivos e pastas que não devem ser enviados para Vercel
+node_modules
+.next
+.git
+.env.local
+.env*.local
+*.log
+.DS_Store
+coverage
+.vscode
+.idea
+*.md
+!README.md
