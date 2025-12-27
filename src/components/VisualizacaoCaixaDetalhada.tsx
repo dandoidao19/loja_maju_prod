@@ -42,21 +42,19 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
     })
     
     if (contexto === 'casa') {
-      // Para CASA: verificar se temos lançamentos carregados
-      if (dados.todosLancamentosCasa.length > 0) {
-        const houveAtualizacao = dados.ultimaAtualizacao > ultimaAtualizacao
+      // Para CASA: verificar se temos lançamentos carregados ou se o contexto terminou de carregar
+      const houveAtualizacao = dados.ultimaAtualizacao > ultimaAtualizacao
+      
+      if (!dadosProntos || houveAtualizacao) {
+        console.log(`✅ ${contexto} - Processando dados do contexto...`)
+        setDadosProntos(true)
+        setUltimaAtualizacao(dados.ultimaAtualizacao)
         
-        if (!dadosProntos || houveAtualizacao) {
-          console.log(`✅ ${contexto} - Dados ${dadosProntos ? 'ATUALIZADOS' : 'CARREGADOS'}: ${dados.todosLancamentosCasa.length} lançamentos`)
-          setDadosProntos(true)
-          setUltimaAtualizacao(dados.ultimaAtualizacao)
-          
-          // Recarregar dados com o modo atual
-          if (mostrandoMes) {
-            carregarDados(true)
-          } else {
-            carregarDados(false)
-          }
+        // Recarregar dados com o modo atual
+        if (mostrandoMes) {
+          carregarDados(true)
+        } else {
+          carregarDados(false)
         }
       }
     } else {
@@ -106,8 +104,11 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
 
   // ✅ FUNÇÃO PRINCIPAL - Recarrega quando chamada
   const carregarDados = async (filtrarPorMes: boolean) => {
+    // MELHORIA: Não travar se não houver lançamentos, apenas mostrar vazio
     if (contexto === 'casa' && dados.todosLancamentosCasa.length === 0) {
-      console.log(`⏳ ${contexto} - Aguardando dados do contexto...`)
+      console.log(`⏳ ${contexto} - Sem lançamentos no contexto, carregando vista vazia...`)
+      setCaixaPrevisto([])
+      setCarregando(false)
       return
     }
     

@@ -64,7 +64,7 @@ export default function LimparTransacoes({ onDataChange }: LimparTransacoesProps
       const { data, error } = await supabase
         .from('lancamentos_financeiros')
         .select('data_prevista')
-        .eq('user_id', user.id)
+        // .eq('user_id', user.id)
         .order('data_prevista', { ascending: false })
 
       if (error) throw error
@@ -155,7 +155,7 @@ export default function LimparTransacoes({ onDataChange }: LimparTransacoesProps
       let query = supabase
         .from('lancamentos_financeiros')
         .select('id, descricao, valor, tipo, status, data_prevista, centro_custo_id') 
-        .eq('user_id', user.id)
+        // .eq('user_id', user.id)
         .order('data_prevista', { ascending: false })
 
       // Aplicar filtros básicos

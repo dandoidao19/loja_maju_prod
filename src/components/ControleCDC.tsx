@@ -62,7 +62,7 @@ export default function ControleCDC({ onDataChange }: ControleCDCProps) {
     }
 
     const dadosValidados = {
-      user_id: user.id,
+      // user_id: user.id,
       nome: formCentroCusto.nome.toUpperCase().trim(),
       contexto: formCentroCusto.contexto,
       tipo: formCentroCusto.tipo,

@@ -70,7 +70,7 @@ export default function EdicaoEmLote({ onDataChange }: EdicaoEmLoteProps) {
       const { data: lanc, error: errorLanc } = await supabase
         .from('lancamentos_financeiros')
         .select('*')
-        .eq('user_id', user?.id)
+        // .eq('user_id', user?.id)
         .order('data_prevista', { ascending: false })
 
       if (errorLanc) throw errorLanc

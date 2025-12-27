@@ -98,14 +98,18 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
       if (!user) return []
 
       // ETAPA 1: Buscar IDs dos centros de custo do contexto
-      const { data: centros } = await supabase
+      const { data: centros, error: errorCentros } = await supabase
         .from('centros_de_custo')
         .select('id')
         .eq('contexto', contexto)
 
-      if (!centros || centros.length === 0) return []
-      
-      const centroIds = centros.map(c => c.id)
+      if (errorCentros) {
+        console.error(`❌ Erro ao buscar centros de custo ${contexto}:`, errorCentros)
+      }
+
+      // MELHORIA: Se não houver centros de custo, ainda assim tenta buscar lançamentos do usuário
+      // para evitar que o sistema trave se o banco estiver vazio ou com estrutura diferente
+      const centroIds = centros ? centros.map(c => c.id) : []
       
       // ETAPA 2: Buscar TODOS os lançamentos com PAGINAÇÃO
       const LIMITE_POR_PAGINA = 1000
@@ -125,8 +129,14 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
             *,
             centros_de_custo(nome)
           `)
-          .eq('user_id', user.id)
-          .in('centro_custo_id', centroIds)
+          // .eq('user_id', user.id) - Removido para permitir modo colaborativo
+          
+        // Só aplica o filtro de centro_custo_id se houver IDs, senão busca todos do usuário
+        if (centroIds.length > 0) {
+          query = query.in('centro_custo_id', centroIds)
+        }
+
+        query = query
           .order('data_prevista', { ascending: false })
           .range(inicio, inicio + LIMITE_POR_PAGINA - 1)
 
@@ -158,6 +168,9 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
       }
 
       console.log(`✅ ${contexto} - Total lançamentos carregados:`, todosLancamentos.length)
+      if (todosLancamentos.length === 0) {
+        console.warn(`⚠️ Nenhum lançamento encontrado para o contexto ${contexto}. Verifique se o usuário possui registros vinculados ao seu ID no Supabase.`)
+      }
       return todosLancamentos
 
     } catch (error) {

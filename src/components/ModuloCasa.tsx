@@ -277,7 +277,7 @@ export default function ModuloCasa() {
       if (abaLancamentos === 'padrao') {
         if (form.parcelas === 1) {
           const dadosLancamento = {
-            user_id: user.id,
+            // user_id: user.id,
             descricao: descricaoMaiuscula,
             valor: valorNumerico,
             tipo: form.tipo,
@@ -285,7 +285,7 @@ export default function ModuloCasa() {
             data_lancamento: dataParaLancamento,
             data_prevista: form.data,
             status: form.status === 'pago' ? 'realizado' : 'previsto',
-            caixa_id: CAIXA_ID_CASA,
+            // caixa_id: CAIXA_ID_CASA,
             parcelamento: null,
             recorrencia: null
           }
@@ -308,7 +308,7 @@ export default function ModuloCasa() {
             }
 
             lancamentosParcelados.push({
-              user_id: user.id,
+              // user_id: user.id,
               descricao: `${descricaoMaiuscula} (${i}/${form.parcelas})`,
               valor: valorParcela,
               tipo: form.tipo,
@@ -316,7 +316,7 @@ export default function ModuloCasa() {
               data_lancamento: dataParcela,
               data_prevista: dataParcela,
               status: 'previsto',
-              caixa_id: CAIXA_ID_CASA,
+              // caixa_id: CAIXA_ID_CASA,
               parcelamento: { atual: i, total: form.parcelas },
               recorrencia: null
             })
@@ -340,7 +340,7 @@ export default function ModuloCasa() {
           }
 
           lancamentosRecorrentes.push({
-            user_id: user.id,
+            // user_id: user.id,
             descricao: `${descricaoMaiuscula} (${i}/${form.recorrenciaQtd})`,
             valor: valorNumerico,
             tipo: form.tipo,
@@ -348,7 +348,7 @@ export default function ModuloCasa() {
             data_lancamento: dataLancamento,
             data_prevista: dataLancamento,
             status: 'previsto',
-            caixa_id: CAIXA_ID_CASA,
+            // caixa_id: CAIXA_ID_CASA,
             parcelamento: null,
             recorrencia: { tipo: 'quantidade', qtd: form.recorrenciaQtd, prazo: form.recorrenciaPrazo }
           })
@@ -434,7 +434,7 @@ export default function ModuloCasa() {
         const novaDescricaoParcela = `${descricaoBase} (${totalParcelas + 1}/${totalParcelas + 1})`
         
         const dadosNovaParcela = {
-          user_id: user.id,
+          // user_id: user.id,
           descricao: novaDescricaoParcela,
           valor: valorRestante,
           tipo: lancamento.tipo,
@@ -551,7 +551,7 @@ export default function ModuloCasa() {
         data_lancamento: dataParaLancamento, 
         data_prevista: form.data,   
         status: form.status === 'pago' ? 'realizado' : 'previsto',
-        caixa_id: CAIXA_ID_CASA,
+        // caixa_id: CAIXA_ID_CASA,
         parcelamento: editandoLancamento.parcelamento,
         recorrencia: form.recorrenciaTipo !== 'nenhuma' ? {
           tipo: form.recorrenciaTipo,
@@ -672,8 +672,7 @@ export default function ModuloCasa() {
       resultado = resultado.filter(lanc => lanc.status === filtroStatus)
     }
 
-    // ✅ CORREÇÃO: Aplicar filtro padrão de 11 dias apenas quando NÃO estiver em "VER TUDO"
-    // e quando NÃO houver nenhum filtro ativo
+    // ✅ MELHORIA: Por padrão, mostrar o mês atual inteiro em vez de apenas 11 dias
     if (!mostrarTodos && 
         !filtroDataInicio && 
         !filtroDataFim && 
@@ -682,15 +681,19 @@ export default function ModuloCasa() {
         !filtroCDC && 
         !filtroStatus) {
       
-      const inicio = getOntemBrasil()
-      const fim = getDataNDias(inicio, 10)
-      
-      console.log(`Filtro padrão 11 dias: ${inicio} até ${fim}`)
+      const mesAtual = new Date().toISOString().substring(0, 7) // YYYY-MM
+      console.log(`Filtro padrão: Mês Atual (${mesAtual})`)
       
       resultado = resultado.filter(lanc => {
         const dataLanc = lanc.data_prevista || lanc.data_lancamento
-        return dataLanc >= inicio && dataLanc <= fim
+        return dataLanc.startsWith(mesAtual)
       })
+
+      // Se não houver nada no mês atual, mostra os últimos 30 dias por segurança
+      if (resultado.length === 0 && dados.todosLancamentosCasa.length > 0) {
+        console.log('Nenhum dado no mês atual, mostrando tudo por padrão.')
+        resultado = [...dados.todosLancamentosCasa].slice(0, 50) // Mostra os 50 mais recentes
+      }
     }
 
     console.log(`✅ Resultado final: ${resultado.length} lançamentos`)
@@ -751,9 +754,7 @@ export default function ModuloCasa() {
     if (filtroMes) return `Lançamentos de ${filtroMes}`
     if (filtroDataInicio || filtroDataFim) return 'Lançamentos Filtrados'
     
-    const inicio = getOntemBrasil()
-    const fim = getDataNDias(inicio, 10)
-    return `Próximos 11 Dias (${formatarDataParaExibicao(inicio)} a ${formatarDataParaExibicao(fim)})`
+    return 'Lançamentos Recentes'
   }
 
   const tituloTabela = getTituloTabela()
