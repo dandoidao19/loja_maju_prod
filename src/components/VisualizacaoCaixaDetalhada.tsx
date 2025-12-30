@@ -28,6 +28,16 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
   
   const carregandoRef = useRef(false)
 
+  // Normalize date strings to 'YYYY-MM-DD' reliably
+  const normalizeDate = useCallback((d?: string) => {
+    if (!d) return ''
+    if (d.includes('T')) return d.split('T')[0]
+    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10)
+    const dt = new Date(d)
+    if (isNaN(dt.getTime())) return d
+    return dt.toISOString().slice(0, 10)
+  }, [])
+
   // ✅ FUNÇÃO AUXILIAR: Calcular data N dias à frente
   const calcularDataNDias = useCallback((dataBase: string, dias: number) => {
     const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -43,6 +53,87 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
     return formatter.format(data)
   }, [])
 
+  // Helper para gerar lista de datas entre start e end (inclusive) no formato YYYY-MM-DD
+  const gerarIntervaloDatas = useCallback((inicio: string, fim: string) => {
+    const lista: string[] = []
+    let atual = new Date(inicio + 'T00:00:00')
+    const fimDate = new Date(fim + 'T00:00:00')
+    while (atual <= fimDate) {
+      lista.push(atual.toISOString().slice(0, 10))
+      atual.setDate(atual.getDate() + 1)
+    }
+    return lista
+  }, [])
+
+  // Construir mapa diário a partir de lançamentos/transações (unificados) e gerar série cumulativa
+  // -> Deduplicação por id (se existir) ou por chave composta como fallback
+  const buildCumulativeSeries = useCallback((entradasRaw: Array<any>, isLoja = false, desiredEnd?: string) => {
+    // entradasRaw: [{ id?, data: 'YYYY-MM-DD', tipo: 'entrada'|'saida', valor: number }, ...]
+    if (!entradasRaw || entradasRaw.length === 0) return { series: [] as DiaCaixa[], minDate: '', maxDate: '' }
+
+    // 0) Normalizar entradas e remover duplicados por id quando disponível
+    const uniqueMap = new Map<string, any>()
+    entradasRaw.forEach((r: any) => {
+      const data = normalizeDate(r.data)
+      if (!data) return
+      const tipo = r.tipo || ''
+      const valor = Number(r.valor ?? r.total ?? 0) || 0
+      // use id if present, else fallback para chave composta
+      const idKey = r.id ?? r.uuid ?? null
+      const key = idKey ? String(idKey) : `${data}|${tipo}|${valor}`
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, { id: idKey, data, tipo, valor, original: r })
+      } else {
+        // se já existe a mesma chave, ignoramos a duplicata exata
+      }
+    })
+
+    const uniqueEntries = Array.from(uniqueMap.values())
+
+    if (uniqueEntries.length === 0) return { series: [], minDate: '', maxDate: '' }
+
+    // 1) Obter min/max data dos registros (usar uniqueEntries)
+    const datas = uniqueEntries.map((e: any) => e.data).filter(Boolean)
+    if (datas.length === 0) return { series: [], minDate: '', maxDate: '' }
+
+    const minDate = datas.reduce((a, b) => (a < b ? a : b))
+    const maxDateEntries = datas.reduce((a, b) => (a > b ? a : b))
+    const maxDate = desiredEnd && desiredEnd > maxDateEntries ? desiredEnd : maxDateEntries
+
+    // 2) Agrupar por dia receitas/despesas
+    const agrup: Record<string, { receitas: number, despesas: number }> = {}
+    uniqueEntries.forEach((r: any) => {
+      const d = r.data
+      if (!agrup[d]) agrup[d] = { receitas: 0, despesas: 0 }
+      const valor = Number(r.valor) || 0
+      if (r.tipo === 'entrada') agrup[d].receitas += valor
+      else agrup[d].despesas += valor
+    })
+
+    // 3) Gerar intervalo completo do minDate até maxDate e calcular acumulado contínuo
+    const listaDatas = gerarIntervaloDatas(minDate, maxDate)
+    const series: DiaCaixa[] = []
+    let saldoAtual = 0
+
+    listaDatas.forEach(data => {
+      const valores = agrup[data] || { receitas: 0, despesas: 0 }
+      saldoAtual += (valores.receitas - valores.despesas)
+      series.push({
+        data,
+        data_formatada: formatarDataParaExibicao(data),
+        receitas: valores.receitas,
+        despesas: valores.despesas,
+        saldo_acumulado: saldoAtual
+      })
+    })
+
+    // DEBUG: log resumo (pequeno) para ajudar a identificar datas com valores inesperados
+    // (se quiser, comente essa linha depois de verificar)
+    console.log(`buildCumulativeSeries -> uniqueEntries: ${uniqueEntries.length}, days: ${series.length}, min: ${minDate}, max: ${maxDate}`)
+
+    return { series, minDate, maxDate }
+  }, [normalizeDate, gerarIntervaloDatas])
+
   // ✅ INICIALIZAR com mês atual
   useEffect(() => {
     const hoje = new Date()
@@ -55,7 +146,7 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
     console.log(`🎯 ${contexto} - Inicializado, modo: ${mostrando30Dias ? '30 DIAS' : 'MÊS'}`)
   }, [contexto, mostrando30Dias])
 
-  // ✅ ATUALIZAR CAIXA REAL do contexto
+  // ✅ ATUALIZAR CAIXA REAL do contexto (mantém apenas exibição)
   useEffect(() => {
     const caixaContexto = contexto === 'casa' 
       ? dados.caixaRealCasa 
@@ -130,7 +221,7 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
     }
   }, [contexto])
 
-  // ✅ CORREÇÃO DEFINITIVA: Função para calcular caixa previsto CORRETAMENTE - CÁLCULO CONTÍNUO
+  // ✅ FUNÇÃO para carregar caixa previsto com cálculo contínuo desde a PRIMEIRA DATA que tem lançamentos no sistema
   const carregarCaixaPrevisto = useCallback(async () => {
     if (carregandoRef.current) {
       console.log(`⏭️ ${contexto} - Já está carregando, ignorando...`)
@@ -141,339 +232,136 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
     setCarregando(true)
     
     try {
-      console.log(`📊 ${contexto} - Carregando caixa previsto...`)
+      console.log(`📊 ${contexto} - Carregando caixa previsto (cálculo contínuo desde primeiro lançamento)...`)
       
       if (contexto === 'casa') {
-        // ✅ CASA: CÁLCULO CONTÍNUO desde a primeira transação até a última previsão
-        
-        // 1. Buscar TODOS os lançamentos REALIZADOS (histórico completo)
-        const { data: lancamentosRealizados, error: errorRealizados } = await supabase
+        // Buscar realizados (histórico) e previstos (futuro) — selecionando também o id para dedupe segura
+        const { data: realizadosRaw, error: errRealizados } = await supabase
           .from('lancamentos_financeiros')
-          .select('valor, tipo, data_lancamento, status')
+          .select('id, valor, tipo, data_lancamento, status')
           .eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b')
-          .eq('status', 'realizado')
           .order('data_lancamento', { ascending: true })
         
-        if (errorRealizados) {
-          console.error(`❌ Erro ao buscar lançamentos realizados:`, errorRealizados)
+        if (errRealizados) {
+          console.error('❌ Erro ao buscar realizados:', errRealizados)
           return
         }
-        
-        // 2. Buscar TODOS os lançamentos PREVISTOS (futuro)
-        const { data: lancamentosPrevistos, error: errorPrevistos } = await supabase
+
+        const { data: previstosRaw, error: errPrevistos } = await supabase
           .from('lancamentos_financeiros')
-          .select('valor, tipo, data_prevista, status')
+          .select('id, valor, tipo, data_prevista, status')
           .eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b')
-          .eq('status', 'previsto')
           .order('data_prevista', { ascending: true })
         
-        if (errorPrevistos) {
-          console.error(`❌ Erro ao buscar lançamentos previstos:`, errorPrevistos)
+        if (errPrevistos) {
+          console.error('❌ Erro ao buscar previstos:', errPrevistos)
           return
         }
-        
-        // 3. Juntar todos os lançamentos
-        const todosLancamentos = [
-          ...(lancamentosRealizados || []).map((l: any) => ({
-            ...l,
-            data: l.data_lancamento,
-            status: 'realizado'
-          })),
-          ...(lancamentosPrevistos || []).map((l: any) => ({
-            ...l,
-            data: l.data_prevista,
-            status: 'previsto'
-          }))
-        ]
-        
-        // 4. Ordenar por data
-        todosLancamentos.sort((a, b) => {
-          return new Date(a.data).getTime() - new Date(b.data).getTime()
+
+        const realizados = realizadosRaw || []
+        const previstos = previstosRaw || []
+
+        // Unificar em um formato simples: { id?, data, tipo, valor }
+        const allEntries: Array<any> = []
+        realizados.forEach((r: any) => {
+          const d = normalizeDate(r.data_lancamento)
+          if (!d) return
+          allEntries.push({ id: r.id ?? null, data: d, tipo: r.tipo, valor: Number(r.valor) || 0 })
         })
-        
-        console.log(`🏠 CASA - Total lançamentos: ${todosLancamentos.length} (${lancamentosRealizados?.length || 0} realizados + ${lancamentosPrevistos?.length || 0} previstos)`)
-        
-        // 5. Filtrar por período se necessário
-        let lancamentosFiltrados = todosLancamentos
-        
+        previstos.forEach((p: any) => {
+          const d = normalizeDate(p.data_prevista)
+          if (!d) return
+          allEntries.push({ id: p.id ?? null, data: d, tipo: p.tipo, valor: Number(p.valor) || 0 })
+        })
+
+        if (allEntries.length === 0) {
+          setCaixaPrevisto([])
+          console.log('ℹ️ CASA - Sem lançamentos no sistema.')
+          return
+        }
+
+        // Determinar janela de exibição (mês ou 10 dias)
+        const hoje = getDataAtualBrasil()
+        let displayStart = ''
+        let displayEnd = ''
+
         if (mostrandoMes && mesFiltro) {
           const [ano, mes] = mesFiltro.split('-')
-          const dataInicio = `${ano}-${mes}-01`
+          displayStart = `${ano}-${mes}-01`
           const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate()
-          const dataFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
-          
-          console.log(`📅 CASA - Filtrando mês: ${dataInicio} até ${dataFim}`)
-          
-          lancamentosFiltrados = todosLancamentos.filter(lanc => {
-            const dataLanc = lanc.data
-            return dataLanc >= dataInicio && dataLanc <= dataFim
-          })
-          
-          // Para cálculo correto do mês, precisamos do saldo acumulado até o dia anterior
-          let saldoAcumulado = 0
-          const dataDiaAnterior = calcularDataNDias(dataInicio, -1)
-          
-          if (lancamentosRealizados) {
-            lancamentosRealizados.forEach((lanc: any) => {
-              if (lanc.data_lancamento <= dataDiaAnterior) {
-                if (lanc.tipo === 'entrada') {
-                  saldoAcumulado += lanc.valor
-                } else {
-                  saldoAcumulado -= lanc.valor
-                }
-              }
-            })
-          }
-          
-          console.log(`💰 CASA - Saldo acumulado até ${dataDiaAnterior}: R$ ${saldoAcumulado.toFixed(2)}`)
-          
-          // 6. Calcular dias agrupados
-          const dadosAgrupados: Record<string, { receitas: number, despesas: number }> = {}
-          
-          lancamentosFiltrados.forEach(lanc => {
-            const data = lanc.data.includes('T') ? lanc.data.split('T')[0] : lanc.data
-            
-            if (!dadosAgrupados[data]) {
-              dadosAgrupados[data] = { receitas: 0, despesas: 0 }
-            }
-            
-            if (lanc.tipo === 'entrada') {
-              dadosAgrupados[data].receitas += lanc.valor
-            } else {
-              dadosAgrupados[data].despesas += lanc.valor
-            }
-          })
-          
-          // 7. Ordenar datas e calcular acumulado
-          const datasOrdenadas = Object.keys(dadosAgrupados).sort()
-          const caixaPrevistoTemp: DiaCaixa[] = []
-          
-          let saldoAtual = saldoAcumulado
-          
-          datasOrdenadas.forEach(data => {
-            const valores = dadosAgrupados[data]
-            const saldoDia = valores.receitas - valores.despesas
-            saldoAtual += saldoDia
-            
-            caixaPrevistoTemp.push({
-              data,
-              data_formatada: formatarDataParaExibicao(data),
-              receitas: valores.receitas,
-              despesas: valores.despesas,
-              saldo_acumulado: saldoAtual
-            })
-          })
-          
-          setCaixaPrevisto(caixaPrevistoTemp)
-          
+          displayEnd = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
         } else {
-          // ✅ MODO 10 DIAS: Mostrar do dia atual até +9 dias
-          const hoje = getDataAtualBrasil()
-          const inicioStr = hoje
-          const fim10DiasStr = calcularDataNDias(hoje, 9)
-          
-          console.log(`📅 CASA - Período 10 dias: ${inicioStr} até ${fim10DiasStr}`)
-          
-          // Filtrar lançamentos dos próximos 10 dias
-          lancamentosFiltrados = todosLancamentos.filter(lanc => {
-            const dataLanc = lanc.data
-            return dataLanc >= inicioStr && dataLanc <= fim10DiasStr
-          })
-          
-          // Calcular saldo acumulado até ontem
-          let saldoAcumulado = 0
-          const dataOntem = calcularDataNDias(hoje, -1)
-          
-          if (lancamentosRealizados) {
-            lancamentosRealizados.forEach((lanc: any) => {
-              if (lanc.data_lancamento <= dataOntem) {
-                if (lanc.tipo === 'entrada') {
-                  saldoAcumulado += lanc.valor
-                } else {
-                  saldoAcumulado -= lanc.valor
-                }
-              }
-            })
-          }
-          
-          console.log(`💰 CASA - Saldo acumulado até ${dataOntem}: R$ ${saldoAcumulado.toFixed(2)}`)
-          
-          // Calcular dias agrupados
-          const dadosAgrupados: Record<string, { receitas: number, despesas: number }> = {}
-          
-          lancamentosFiltrados.forEach(lanc => {
-            const data = lanc.data.includes('T') ? lanc.data.split('T')[0] : lanc.data
-            
-            if (!dadosAgrupados[data]) {
-              dadosAgrupados[data] = { receitas: 0, despesas: 0 }
-            }
-            
-            if (lanc.tipo === 'entrada') {
-              dadosAgrupados[data].receitas += lanc.valor
-            } else {
-              dadosAgrupados[data].despesas += lanc.valor
-            }
-          })
-          
-          // Ordenar datas e calcular acumulado
-          const datasOrdenadas = Object.keys(dadosAgrupados).sort()
-          const caixaPrevistoTemp: DiaCaixa[] = []
-          
-          let saldoAtual = saldoAcumulado
-          
-          datasOrdenadas.forEach(data => {
-            const valores = dadosAgrupados[data]
-            const saldoDia = valores.receitas - valores.despesas
-            saldoAtual += saldoDia
-            
-            caixaPrevistoTemp.push({
-              data,
-              data_formatada: formatarDataParaExibicao(data),
-              receitas: valores.receitas,
-              despesas: valores.despesas,
-              saldo_acumulado: saldoAtual
-            })
-          })
-          
-          setCaixaPrevisto(caixaPrevistoTemp)
+          displayStart = hoje
+          displayEnd = calcularDataNDias(hoje, 9)
         }
-        
-        console.log(`✅ CASA - Cálculo completo: ${caixaPrevisto.length} dias`)
-        
+
+        // Build cumulative series starting from the FIRST date that exists in the system (min date in allEntries)
+        const desiredEnd = displayEnd
+        const { series } = buildCumulativeSeries(allEntries, false, desiredEnd)
+
+        // Agora cortar somente o período de exibição (displayStart..displayEnd)
+        const resultado = series.filter(s => s.data >= displayStart && s.data <= displayEnd)
+        setCaixaPrevisto(resultado)
+        console.log(`✅ CASA - Cálculo contínuo aplicado. Total dias no período: ${resultado.length}`)
+
       } else {
-        // ✅ LOJA: Mantém a lógica anterior (30 dias a partir de ontem)
-        const hoje = getDataAtualBrasil()
-        let dadosFiltrados: any[] = []
-        let saldoAcumulado = 0
+        // LOJA: buscar todas as transacoes (pagas) e utilizar valor_pago quando existir. selecionar id para dedupe
+        const { data: transacoesRaw, error: errTrans } = await supabase
+          .from('transacoes_loja')
+          .select('id, tipo, total, valor_pago, status_pagamento, data')
+          .order('data', { ascending: true })
         
-        if (mostrando30Dias) {
-          // MODO 30 DIAS - A partir de ONTEM
-          const dataOntem = calcularDataNDias(hoje, -1)
-          const inicio30Dias = dataOntem
-          const fim30Dias = calcularDataNDias(dataOntem, 29)
-          
-          console.log(`📅 LOJA - Período 30 dias: ${inicio30Dias} até ${fim30Dias}`)
-          
-          // Calcular saldo acumulado até 1 dia antes do início
-          const dataAntesInicio = calcularDataNDias(inicio30Dias, -1)
-          
-          const { data: transacoesAnteriores, error } = await supabase
-            .from('transacoes_loja')
-            .select('tipo, total, valor_pago, status_pagamento')
-            .eq('status_pagamento', 'pago')
-            .lte('data', dataAntesInicio)
-          
-          if (error) throw error
-          
-          if (transacoesAnteriores) {
-            transacoesAnteriores.forEach(item => {
-              const valor = item.valor_pago !== null ? item.valor_pago : item.total
-              if (item.tipo === 'entrada') {
-                saldoAcumulado += valor
-              } else {
-                saldoAcumulado -= valor
-              }
-            })
-          }
-          
-          // Transações dos 30 dias
-          const { data: transacoes30Dias, error: error30Dias } = await supabase
-            .from('transacoes_loja')
-            .select('*')
-            .gte('data', inicio30Dias)
-            .lte('data', fim30Dias)
-            .order('data', { ascending: true })
-          
-          if (error30Dias) throw error30Dias
-          dadosFiltrados = transacoes30Dias || []
-          
-        } else if (mesFiltro) {
-          // MODO MÊS
-          const [ano, mes] = mesFiltro.split('-')
-          const dataInicio = `${ano}-${mes}-01`
-          const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate()
-          const dataFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
-          
-          console.log(`📅 LOJA - Período mês: ${dataInicio} até ${dataFim}`)
-          
-          const dataDiaAnterior = calcularDataNDias(dataInicio, -1)
-          
-          const { data: transacoesAnteriores, error } = await supabase
-            .from('transacoes_loja')
-            .select('tipo, total, valor_pago, status_pagamento')
-            .eq('status_pagamento', 'pago')
-            .lte('data', dataDiaAnterior)
-          
-          if (error) throw error
-          
-          if (transacoesAnteriores) {
-            transacoesAnteriores.forEach(item => {
-              const valor = item.valor_pago !== null ? item.valor_pago : item.total
-              if (item.tipo === 'entrada') {
-                saldoAcumulado += valor
-              } else {
-                saldoAcumulado -= valor
-              }
-            })
-          }
-          
-          // Transações do mês
-          const { data: transacoesMes, error: errorMes } = await supabase
-            .from('transacoes_loja')
-            .select('*')
-            .gte('data', dataInicio)
-            .lte('data', dataFim)
-            .order('data', { ascending: true })
-          
-          if (errorMes) throw errorMes
-          dadosFiltrados = transacoesMes || []
+        if (errTrans) {
+          console.error('❌ Erro ao buscar transações da loja:', errTrans)
+          return
         }
-        
-        console.log(`📈 LOJA - ${dadosFiltrados.length} registros para cálculo`)
-        console.log(`💰 LOJA - Saldo acumulado inicial: R$ ${saldoAcumulado.toFixed(2)}`)
-        
-        // Calcular dados agrupados por dia
-        const dadosAgrupados: Record<string, { receitas: number, despesas: number }> = {}
-        
-        dadosFiltrados.forEach(item => {
-          const data = item.data.includes('T') ? item.data.split('T')[0] : item.data
-          
-          if (!dadosAgrupados[data]) {
-            dadosAgrupados[data] = { receitas: 0, despesas: 0 }
-          }
-          
-          const valor = item.total
-          
-          if (item.tipo === 'entrada') {
-            dadosAgrupados[data].receitas += valor
-          } else {
-            dadosAgrupados[data].despesas += valor
-          }
-        })
-        
-        // Ordenar datas e calcular acumulado
-        const datasOrdenadas = Object.keys(dadosAgrupados).sort()
-        const caixaPrevistoTemp: DiaCaixa[] = []
-        
-        let saldoAtual = saldoAcumulado
-        
-        datasOrdenadas.forEach(data => {
-          const valores = dadosAgrupados[data]
-          const saldoDia = valores.receitas - valores.despesas
-          saldoAtual += saldoDia
-          
-          caixaPrevistoTemp.push({
-            data,
-            data_formatada: formatarDataParaExibicao(data),
-            receitas: valores.receitas,
-            despesas: valores.despesas,
-            saldo_acumulado: saldoAtual
-          })
-        })
-        
-        setCaixaPrevisto(caixaPrevistoTemp)
+
+        const transacoes = transacoesRaw || []
+
+        if (transacoes.length === 0) {
+          setCaixaPrevisto([])
+          console.log('ℹ️ LOJA - Sem transações no sistema.')
+          return
+        }
+
+        // Unificar em formato { id?, data, tipo, valor }
+        const allEntries: Array<any> = transacoes.map((t: any) => ({
+          id: t.id ?? null,
+          data: normalizeDate(t.data),
+          tipo: t.tipo,
+          valor: Number(t.valor_pago !== null && t.valor_pago !== undefined ? t.valor_pago : t.total) || 0
+        })).filter((t: any) => t.data)
+
+        // Determinar janela de exibição (30 dias a partir de ontem ou mês)
+        const hoje = getDataAtualBrasil()
+        let displayStart = ''
+        let displayEnd = ''
+
+        if (mostrando30Dias) {
+          const ontem = calcularDataNDias(hoje, -1)
+          displayStart = ontem
+          displayEnd = calcularDataNDias(ontem, 29)
+        } else if (mesFiltro) {
+          const [ano, mes] = mesFiltro.split('-')
+          displayStart = `${ano}-${mes}-01`
+          const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate()
+          displayEnd = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
+        } else {
+          const ontem = calcularDataNDias(hoje, -1)
+          displayStart = ontem
+          displayEnd = calcularDataNDias(ontem, 29)
+        }
+
+        // Build cumulative series starting from first date in system and extend until displayEnd
+        const desiredEnd = displayEnd
+        const { series } = buildCumulativeSeries(allEntries, true, desiredEnd)
+
+        // Filtrar somente o período de exibição
+        const resultado = series.filter(s => s.data >= displayStart && s.data <= displayEnd)
+        setCaixaPrevisto(resultado)
+        console.log(`✅ LOJA - Cálculo contínuo aplicado. Total dias no período: ${resultado.length}`)
       }
-      
+
       setUltimaAtualizacao(Date.now())
       
     } catch (error) {
@@ -482,7 +370,7 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
       setCarregando(false)
       carregandoRef.current = false
     }
-  }, [contexto, mostrando30Dias, mostrandoMes, mesFiltro, calcularDataNDias])
+  }, [contexto, mostrando30Dias, mostrandoMes, mesFiltro, calcularDataNDias, normalizeDate, gerarIntervaloDatas, buildCumulativeSeries])
 
   // ✅ EFEITO: Carregar quando mudar modo ou mês
   useEffect(() => {
