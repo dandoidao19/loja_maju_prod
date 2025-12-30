@@ -21,7 +21,7 @@ interface Transacao {
   valor: number
   valor_pago?: number
   juros_descontos?: number
-  status_pagamento: string
+  status_pagamento: string | null
   quantidade_parcelas: number
   cliente_fornecedor?: string
   parcela_numero?: number
@@ -30,18 +30,9 @@ interface Transacao {
   origem_id?: string
 }
 
-interface CacheVendaCompra {
-  [key: string]: {
-    numero_transacao: number
-    quantidade_parcelas: number
-    timestamp: number
-  }
-}
-
-// CACHE GLOBAL - Compartilhado entre todas as instâncias
 let cacheGlobalTransacoes: Transacao[] = []
 let cacheGlobalUltimaAtualizacao: number = 0
-const CACHE_TEMPO_VIDA = 30000 // 30 segundos
+const CACHE_TEMPO_VIDA = 30000
 
 export default function TelaInicialLoja() {
   const [transacoes, setTransacoes] = useState<Transacao[]>(cacheGlobalTransacoes)
@@ -49,8 +40,6 @@ export default function TelaInicialLoja() {
   const [loading, setLoading] = useState(false)
   const [verTodas, setVerTodas] = useState(false)
   
-  const cacheVendasRef = useRef<CacheVendaCompra>({})
-  const cacheComprasRef = useRef<CacheVendaCompra>({})
   const ultimaBuscaRef = useRef<number>(cacheGlobalUltimaAtualizacao)
   const buscaEmAndamentoRef = useRef<boolean>(false)
 
@@ -64,7 +53,7 @@ export default function TelaInicialLoja() {
 
   const [modalPagarTransacao, setModalPagarTransacao] = useState<{
     aberto: boolean
-    transacao: Transacao | null
+    transacao: any | null
   }>({
     aberto: false,
     transacao: null
@@ -72,7 +61,7 @@ export default function TelaInicialLoja() {
 
   const [modalEstornarTransacao, setModalEstornarTransacao] = useState<{
     aberto: boolean
-    transacao: Transacao | null
+    transacao: any | null
   }>({
     aberto: false,
     transacao: null
@@ -80,243 +69,57 @@ export default function TelaInicialLoja() {
 
   const { dados, atualizarCaixaReal } = useDadosFinanceiros()
 
-  const limparCacheAntigo = useCallback(() => {
-    const agora = Date.now()
-    const cincoMinutos = 5 * 60 * 1000
-    
-    Object.keys(cacheVendasRef.current).forEach(key => {
-      if (agora - cacheVendasRef.current[key].timestamp > cincoMinutos) {
-        delete cacheVendasRef.current[key]
-      }
-    })
-    
-    Object.keys(cacheComprasRef.current).forEach(key => {
-      if (agora - cacheComprasRef.current[key].timestamp > cincoMinutos) {
-        delete cacheComprasRef.current[key]
-      }
-    })
-  }, [])
-
-  const buscarVendaCache = useCallback(async (cliente: string, origem_id?: string) => {
-    const cacheKey = `${cliente}-${origem_id || ''}`
-    
-    const cached = cacheVendasRef.current[cacheKey]
-    if (cached && (Date.now() - cached.timestamp < 30000)) {
-      return cached
-    }
-
-    try {
-      let query = supabase
-        .from('vendas')
-        .select('numero_transacao, quantidade_parcelas')
-        .ilike('cliente', `%${cliente}%`)
-        .order('data_venda', { ascending: false })
-
-      if (origem_id) {
-        query = query.eq('origem_id', origem_id)
-      }
-
-      const { data } = await query.limit(1).maybeSingle()
-      
-      if (data) {
-        cacheVendasRef.current[cacheKey] = {
-          numero_transacao: data.numero_transacao,
-          quantidade_parcelas: data.quantidade_parcelas,
-          timestamp: Date.now()
-        }
-      }
-      
-      return data
-    } catch (error) {
-      console.error(`❌ Erro ao buscar venda cache para ${cliente}:`, error)
-      return null
-    }
-  }, [])
-
-  const buscarCompraCache = useCallback(async (fornecedor: string, origem_id?: string) => {
-    const cacheKey = `${fornecedor}-${origem_id || ''}`
-    
-    const cached = cacheComprasRef.current[cacheKey]
-    if (cached && (Date.now() - cached.timestamp < 30000)) {
-      return cached
-    }
-
-    try {
-      let query = supabase
-        .from('compras')
-        .select('numero_transacao, quantidade_parcelas')
-        .ilike('fornecedor', `%${fornecedor}%`)
-        .order('data_compra', { ascending: false })
-
-      if (origem_id) {
-        query = query.eq('origem_id', origem_id)
-      }
-
-      const { data } = await query.limit(1).maybeSingle()
-      
-      if (data) {
-        cacheComprasRef.current[cacheKey] = {
-          numero_transacao: data.numero_transacao,
-          quantidade_parcelas: data.quantidade_parcelas,
-          timestamp: Date.now()
-        }
-      }
-      
-      return data
-    } catch (error) {
-      console.error(`❌ Erro ao buscar compra cache para ${fornecedor}:`, error)
-      return null
-    }
-  }, [])
-
-  const processarTransacoesBatch = useCallback(async (transacoesLoja: any[]) => {
+  // ✅ FUNÇÃO: Processar transações (simplificada)
+  const processarTransacoes = useCallback(async (transacoesLoja: any[]) => {
     if (!transacoesLoja || transacoesLoja.length === 0) return []
 
-    const transacoesVenda: any[] = []
-    const transacoesCompra: any[] = []
-    
-    transacoesLoja.forEach(trans => {
-      if (trans.tipo === 'entrada') {
-        transacoesVenda.push(trans)
-      } else {
-        transacoesCompra.push(trans)
-      }
-    })
-
-    // Extrair nomes de forma segura
-    const extrairNome = (descricao: string) => {
-      const matchCompraComNumero = descricao.match(/Compra #(\d+)\s+(.+?)\s+\((\d+)\/(\d+)\)/)
-      const matchCompraAntiga = descricao.match(/Compra\s+(.+?)\s+\((\d+)\/(\d+)\)/)
-      const matchVenda = descricao.match(/Venda\s+(.+?)\s+\((\d+)\/(\d+)\)/)
-      
-      if (matchCompraComNumero) {
-        return matchCompraComNumero[2].trim()
-      } else if (matchCompraAntiga) {
-        return matchCompraAntiga[1].trim()
-      } else if (matchVenda) {
-        return matchVenda[1].trim()
-      } else {
-        // Remove prefixo e sufixo de parcela
-        let nome = descricao.replace(/^(Compra|Venda)\s+/, '')
-        nome = nome.replace(/\s*\(\d+\/\d+\)/, '')
-        return nome.trim()
-      }
-    }
-
-    const clientesVenda = [...new Set(transacoesVenda.map(t => extrairNome(t.descricao)))].filter(Boolean)
-    const fornecedoresCompra = [...new Set(transacoesCompra.map(t => extrairNome(t.descricao)))].filter(Boolean)
-    
-    const vendasCache: Record<string, any> = {}
-    const comprasCache: Record<string, any> = {}
-
-    // Buscar caches em paralelo
-    await Promise.all([
-      ...clientesVenda.map(async (cliente) => {
-        const venda = await buscarVendaCache(cliente)
-        if (venda) {
-          vendasCache[cliente] = venda
-        }
-      }),
-      ...fornecedoresCompra.map(async (fornecedor) => {
-        const compra = await buscarCompraCache(fornecedor)
-        if (compra) {
-          comprasCache[fornecedor] = compra
-        }
-      })
-    ])
-
     return transacoesLoja.map(trans => {
+      // Extrair informações da descrição
       let parcela_numero = 1
       let parcela_total = 1
-      let nomeClienteFornecedor = extrairNome(trans.descricao)
-      let numeroTransacaoPrincipal = 0
-      let quantidadeParcelasPrincipal = 1
-
-      const matchCompraComNumero = trans.descricao.match(/Compra #(\d+)\s+(.+?)\s+\((\d+)\/(\d+)\)/)
-      const matchCompraAntiga = trans.descricao.match(/Compra\s+(.+?)\s+\((\d+)\/(\d+)\)/)
-      const matchVenda = trans.descricao.match(/Venda\s+(.+?)\s+\((\d+)\/(\d+)\)/)
-
-      if (trans.tipo === 'saida' && matchCompraComNumero) {
-        numeroTransacaoPrincipal = parseInt(matchCompraComNumero[1])
-        parcela_numero = parseInt(matchCompraComNumero[3])
-        parcela_total = parseInt(matchCompraComNumero[4])
-        nomeClienteFornecedor = matchCompraComNumero[2].trim()
-        quantidadeParcelasPrincipal = parcela_total
-      } else if (trans.tipo === 'saida' && matchCompraAntiga) {
-        parcela_numero = parseInt(matchCompraAntiga[2])
-        parcela_total = parseInt(matchCompraAntiga[3])
-        nomeClienteFornecedor = matchCompraAntiga[1].trim()
-        
-        const compra = comprasCache[nomeClienteFornecedor]
-        if (compra) {
-          numeroTransacaoPrincipal = compra.numero_transacao
-          quantidadeParcelasPrincipal = compra.quantidade_parcelas
-        }
-      } else if (trans.tipo === 'entrada' && matchVenda) {
-        parcela_numero = parseInt(matchVenda[2])
-        parcela_total = parseInt(matchVenda[3])
-        nomeClienteFornecedor = matchVenda[1].trim()
-        
-        const venda = vendasCache[nomeClienteFornecedor]
-        if (venda) {
-          numeroTransacaoPrincipal = venda.numero_transacao
-          quantidadeParcelasPrincipal = venda.quantidade_parcelas
-        }
-      } else {
-        const match = trans.descricao.match(/\((\d+)\/(\d+)\)/)
-        if (match) {
-          parcela_numero = parseInt(match[1])
-          parcela_total = parseInt(match[2])
-        }
-
-        if (trans.tipo === 'entrada') {
-          const venda = vendasCache[nomeClienteFornecedor]
-          if (venda) {
-            numeroTransacaoPrincipal = venda.numero_transacao
-            quantidadeParcelasPrincipal = venda.quantidade_parcelas
-          }
-        } else {
-          const compra = comprasCache[nomeClienteFornecedor]
-          if (compra) {
-            numeroTransacaoPrincipal = compra.numero_transacao
-            quantidadeParcelasPrincipal = compra.quantidade_parcelas
-          }
-        }
+      let descricaoLimpa = trans.descricao
+      
+      // Tentar extrair parcela da descrição
+      const matchParcela = trans.descricao.match(/\((\d+)\/(\d+)\)/)
+      if (matchParcela) {
+        parcela_numero = parseInt(matchParcela[1])
+        parcela_total = parseInt(matchParcela[2])
+        descricaoLimpa = trans.descricao.replace(/\s*\(\d+\/\d+\)/, '').trim()
       }
-
-      if (numeroTransacaoPrincipal === 0) {
-        numeroTransacaoPrincipal = trans.numero_transacao
-      }
-
+      
+      // Remover prefixos "Venda" ou "Compra"
+      descricaoLimpa = descricaoLimpa.replace(/^(Venda|Compra)\s+/i, '').trim()
+      
       return {
         id: trans.id,
-        numero_transacao: numeroTransacaoPrincipal,
+        numero_transacao: trans.numero_transacao || 0,
         data: trans.data_original || trans.data,
         data_pagamento: trans.data_pagamento,
         data_original: trans.data_original || trans.data,
         tipo: trans.tipo,
-        descricao: nomeClienteFornecedor || trans.descricao,
+        descricao: descricaoLimpa || trans.descricao,
         valor: trans.total,
         valor_pago: trans.valor_pago,
         juros_descontos: trans.juros_descontos,
-        status_pagamento: trans.status_pagamento,
-        quantidade_parcelas: quantidadeParcelasPrincipal,
+        status_pagamento: trans.status_pagamento || 'pendente',
+        quantidade_parcelas: trans.quantidade_parcelas || 1,
         parcela_numero,
-        parcela_total: quantidadeParcelasPrincipal,
-        cliente_fornecedor: nomeClienteFornecedor,
+        parcela_total: trans.quantidade_parcelas || parcela_total,
+        cliente_fornecedor: descricaoLimpa,
         origem_id: trans.id,
       }
     })
-  }, [buscarVendaCache, buscarCompraCache])
+  }, [])
 
   const buscarTransacoes = useCallback(async (forcarAtualizacao = false) => {
     if (buscaEmAndamentoRef.current) {
+      console.log('⏭️ Busca já em andamento')
       return
     }
 
     const agora = Date.now()
     
-    // VERIFICA CACHE GLOBAL - Não busca se cache ainda é válido
+    // ✅ Usar cache se disponível e não forçado
     if (!forcarAtualizacao && 
         cacheGlobalTransacoes.length > 0 && 
         (agora - cacheGlobalUltimaAtualizacao < CACHE_TEMPO_VIDA)) {
@@ -325,9 +128,8 @@ export default function TelaInicialLoja() {
       return
     }
     
-    // Evita múltiplas buscas em sequência
     if (!forcarAtualizacao && agora - ultimaBuscaRef.current < 5000) {
-      console.log('⏭️ Busca ignorada (muito recente)')
+      console.log('⏭️ Busca muito recente, ignorando')
       return
     }
 
@@ -335,8 +137,6 @@ export default function TelaInicialLoja() {
     setLoading(true)
     
     try {
-      limparCacheAntigo()
-      
       console.log('📊 Buscando transações da loja...')
       const { data: transacoesLoja, error: errorTransacoes } = await supabase
         .from('transacoes_loja')
@@ -356,11 +156,10 @@ export default function TelaInicialLoja() {
       }
 
       console.log(`🔍 Processando ${transacoesLoja.length} transações...`)
-      const transacoesFormatadas = await processarTransacoesBatch(transacoesLoja)
+      const transacoesFormatadas = await processarTransacoes(transacoesLoja)
       
       console.log(`✅ ${transacoesFormatadas.length} transações processadas`)
       
-      // ATUALIZA CACHE GLOBAL E ESTADO LOCAL
       setTransacoes(transacoesFormatadas)
       cacheGlobalTransacoes = transacoesFormatadas
       cacheGlobalUltimaAtualizacao = agora
@@ -372,13 +171,11 @@ export default function TelaInicialLoja() {
       setLoading(false)
       buscaEmAndamentoRef.current = false
     }
-  }, [limparCacheAntigo, processarTransacoesBatch])
+  }, [processarTransacoes])
 
-  // Efeito inicial - busca apenas se cache expirou
   useEffect(() => {
     const agora = Date.now()
     
-    // Se cache é válido, usa cache. Senão, busca.
     if (cacheGlobalTransacoes.length > 0 && 
         (agora - cacheGlobalUltimaAtualizacao < CACHE_TEMPO_VIDA)) {
       console.log('🚀 Inicializando com cache válido')
@@ -388,7 +185,6 @@ export default function TelaInicialLoja() {
       buscarTransacoes()
     }
     
-    // Configurar listener para atualizações em tempo real
     const channel = supabase
       .channel('transacoes-loja-changes')
       .on(
@@ -400,7 +196,6 @@ export default function TelaInicialLoja() {
         },
         (payload) => {
           console.log('🔄 Mudança detectada na tabela transacoes_loja:', payload.eventType)
-          // Forçar atualização do cache global
           cacheGlobalUltimaAtualizacao = 0
           buscarTransacoes(true)
         }
@@ -412,31 +207,60 @@ export default function TelaInicialLoja() {
     }
   }, [buscarTransacoes])
 
+  // ✅ CORREÇÃO: Função para verificar se está no mês atual
+  const estaNoMesAtual = useCallback((dataString: string) => {
+    try {
+      if (!dataString) return false
+      
+      const data = new Date(dataString + 'T12:00:00')
+      const hoje = new Date()
+      
+      if (isNaN(data.getTime())) return false
+      
+      return data.getFullYear() === hoje.getFullYear() && 
+             data.getMonth() === hoje.getMonth()
+    } catch (error) {
+      console.error('❌ Erro ao verificar mês:', error)
+      return false
+    }
+  }, [])
+
+  const estaNoPeriodo = useCallback((dataString: string, inicio: string, fim: string) => {
+    try {
+      const data = new Date(dataString + 'T12:00:00')
+      const dataInicio = new Date(inicio + 'T00:00:00')
+      const dataFim = new Date(fim + 'T23:59:59')
+      
+      return data >= dataInicio && data <= dataFim
+    } catch (error) {
+      console.error('❌ Erro ao verificar período:', error)
+      return false
+    }
+  }, [])
+
+  // ✅ CORREÇÃO: Aplicar filtros corretamente
   const aplicarFiltros = useCallback(() => {
     let resultado = [...transacoes]
 
-    const filtrosAplicados = 
+    // ✅ Primeiro: Verificar se há filtros ativos
+    const temFiltros = 
+      !!filtroDataInicio || 
+      !!filtroDataFim || 
+      !!filtroMes || 
       !!filtroNumeroTransacao || 
       !!filtroDescricao || 
       filtroTipo !== 'todos' || 
-      filtroStatus !== 'todos' ||
-      !!filtroDataInicio ||
-      !!filtroDataFim ||
-      !!filtroMes
+      filtroStatus !== 'todos'
 
-    if (!filtrosAplicados && !verTodas) {
-      const hoje = getDataAtualBrasil()
-      const dataInicio = new Date(hoje)
-      dataInicio.setDate(dataInicio.getDate() - 1)
-      const dataFim = new Date(hoje)
-      dataFim.setDate(dataFim.getDate() + 9)
-
+    // ✅ Se não tem filtros e não está em "Ver Todas", aplicar filtro do MÊS ATUAL
+    if (!temFiltros && !verTodas) {
+      console.log('🎯 Aplicando filtro padrão: Mês Atual')
       resultado = resultado.filter(transacao => {
-        const dataTransacao = new Date(transacao.data)
-        return dataTransacao >= dataInicio && dataTransacao <= dataFim
+        return estaNoMesAtual(transacao.data)
       })
     }
 
+    // Aplicar outros filtros
     if (filtroNumeroTransacao) {
       resultado = resultado.filter(transacao => 
         transacao.numero_transacao.toString().includes(filtroNumeroTransacao)
@@ -460,31 +284,30 @@ export default function TelaInicialLoja() {
       })
     }
 
-    // REMOVIDO: status 'parcial' - apenas pago e pendente
     if (filtroStatus !== 'todos') {
       resultado = resultado.filter(transacao => transacao.status_pagamento === filtroStatus)
     }
 
     if (filtroDataInicio && filtroDataFim) {
       resultado = resultado.filter(transacao => {
-        const dataTransacao = new Date(transacao.data)
-        const inicio = new Date(filtroDataInicio)
-        const fim = new Date(filtroDataFim)
-        return dataTransacao >= inicio && dataTransacao <= fim
+        return estaNoPeriodo(transacao.data, filtroDataInicio, filtroDataFim)
       })
     }
 
     if (filtroMes) {
       const [ano, mes] = filtroMes.split('-')
+      const primeiroDia = `${ano}-${mes}-01`
+      const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate()
+      const ultimoDiaStr = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
+      
       resultado = resultado.filter(transacao => {
-        const dataTransacao = new Date(transacao.data)
-        return dataTransacao.getFullYear() === parseInt(ano) && 
-               (dataTransacao.getMonth() + 1) === parseInt(mes)
+        return estaNoPeriodo(transacao.data, primeiroDia, ultimoDiaStr)
       })
     }
 
+    console.log(`✅ Filtros aplicados: ${resultado.length} transações`)
     setTransacoesFiltradas(resultado)
-  }, [transacoes, filtroDataInicio, filtroDataFim, filtroMes, filtroNumeroTransacao, filtroDescricao, filtroTipo, filtroStatus, verTodas])
+  }, [transacoes, filtroDataInicio, filtroDataFim, filtroMes, filtroNumeroTransacao, filtroDescricao, filtroTipo, filtroStatus, verTodas, estaNoMesAtual, estaNoPeriodo])
 
   useEffect(() => {
     aplicarFiltros()
@@ -501,7 +324,7 @@ export default function TelaInicialLoja() {
         valor: transacao.valor_pago || transacao.valor,
         parcela: `${transacao.parcela_numero || 1}/${transacao.parcela_total || transacao.quantidade_parcelas || 1}`,
         tipo: transacao.tipo === 'entrada' ? 'VENDA' : 'COMPRA' as 'VENDA' | 'COMPRA',
-        status: transacao.status_pagamento
+        status: transacao.status_pagamento || 'pendente'
       }))
       
       const totalGeral = transacoesFiltradas.reduce((total, transacao) => {
@@ -509,12 +332,12 @@ export default function TelaInicialLoja() {
       }, 0)
       
       const filtrosAplicados = []
+      if (filtroDataInicio && filtroDataFim) filtrosAplicados.push(`Período: ${filtroDataInicio} até ${filtroDataFim}`)
+      if (filtroMes) filtrosAplicados.push(`Mês: ${filtroMes}`)
       if (filtroNumeroTransacao) filtrosAplicados.push(`Transação: ${filtroNumeroTransacao}`)
       if (filtroDescricao) filtrosAplicados.push(`Cliente/Fornecedor: ${filtroDescricao}`)
       if (filtroTipo !== 'todos') filtrosAplicados.push(`Tipo: ${filtroTipo}`)
       if (filtroStatus !== 'todos') filtrosAplicados.push(`Status: ${filtroStatus}`)
-      if (filtroDataInicio && filtroDataFim) filtrosAplicados.push(`Período: ${filtroDataInicio} até ${filtroDataFim}`)
-      if (filtroMes) filtrosAplicados.push(`Mês: ${filtroMes}`)
       
       const dadosRelatorio = {
         tipo: 'financeiro' as const,
@@ -532,7 +355,7 @@ export default function TelaInicialLoja() {
       alert(`✅ Relatório financeiro gerado com sucesso! ${transacoesFiltradas.length} transação(ões) no relatório.`)
     } catch (error) {
       console.error('Erro ao gerar relatório financeiro:', error)
-      alert('❌ Erro ao gerar relatório financeiro. Verifique o console para mais detalhes.')
+      alert('❌ Erro ao gerar relatório financeiro.')
     }
   }
 
@@ -547,20 +370,20 @@ export default function TelaInicialLoja() {
     setVerTodas(false)
   }, [])
 
-  const getStatusColor = useCallback((status: string) => {
-    if (status === 'pago') {
-      return 'bg-green-700 text-white font-bold'
-    }
+  const getStatusColor = useCallback((status: string | null) => {
+    if (!status) return 'bg-gray-100 text-gray-800'
+    
+    if (status === 'pago') return 'bg-green-700 text-white font-bold'
+    
     switch (status) {
       case 'pendente': return 'bg-yellow-100 text-yellow-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }, [])
 
-  const getStatusLabel = useCallback((status: string) => {
-    if (status === 'pago') {
-      return '✓Pago'
-    }
+  const getStatusLabel = useCallback((status: string | null) => {
+    if (!status) return 'N/A'
+    if (status === 'pago') return '✓Pago'
     return status.charAt(0).toUpperCase() + status.slice(1)
   }, [])
 
@@ -573,14 +396,12 @@ export default function TelaInicialLoja() {
   }, [])
 
   const getValorExibicao = useCallback((transacao: Transacao) => {
-    // ✅ Retorna o valor a ser exibido: valor_pago se existir, senão valor
     return transacao.valor_pago !== undefined && transacao.valor_pago !== null 
       ? transacao.valor_pago 
       : transacao.valor
   }, [])
 
   const getDiferenca = useCallback((transacao: Transacao) => {
-    // ✅ Calcula diferença entre valor_pago e valor
     if (transacao.valor_pago === undefined || transacao.valor_pago === null) {
       return 0
     }
@@ -588,34 +409,27 @@ export default function TelaInicialLoja() {
   }, [])
 
   const temPagamento = useCallback((transacao: Transacao) => {
-    // ✅ Verifica se há pagamento (data_pagamento existe)
     return !!transacao.data_pagamento
   }, [])
 
   const handlePagamentoRealizado = useCallback(() => {
-    // Invalida cache global para forçar atualização
     cacheGlobalUltimaAtualizacao = 0
     cacheGlobalTransacoes = []
     ultimaBuscaRef.current = 0
-    cacheVendasRef.current = {}
-    cacheComprasRef.current = {}
     atualizarCaixaReal('loja')
     buscarTransacoes(true)
   }, [atualizarCaixaReal, buscarTransacoes])
 
   const handleEstornoRealizado = useCallback(() => {
-    // Invalida cache global para forçar atualização
     cacheGlobalUltimaAtualizacao = 0
     cacheGlobalTransacoes = []
     ultimaBuscaRef.current = 0
-    cacheVendasRef.current = {}
-    cacheComprasRef.current = {}
     atualizarCaixaReal('loja')
     buscarTransacoes(true)
   }, [atualizarCaixaReal, buscarTransacoes])
 
   const tituloLista = useMemo(() => {
-    const filtrosAplicados = 
+    const temFiltros = 
       !!filtroNumeroTransacao || 
       !!filtroDescricao || 
       filtroTipo !== 'todos' || 
@@ -624,17 +438,21 @@ export default function TelaInicialLoja() {
       !!filtroDataFim ||
       !!filtroMes
 
-    return verTodas ? 'Todas as Parcelas' : 
-           filtrosAplicados ? 'Parcelas Filtradas' : 
-           'Próximas Parcelas (11 dias)'
+    if (verTodas) {
+      return 'Todas as Parcelas'
+    } else if (temFiltros) {
+      return 'Parcelas Filtradas'
+    } else {
+      const hoje = new Date()
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0')
+      const ano = hoje.getFullYear()
+      return `Parcelas do Mês ${mes}/${ano}`
+    }
   }, [verTodas, filtroNumeroTransacao, filtroDescricao, filtroTipo, filtroStatus, filtroDataInicio, filtroDataFim, filtroMes])
-
-  if (loading && transacoes.length === 0) {
-    return <div className="text-center py-4 text-gray-500 text-xs">Carregando...</div>
-  }
 
   return (
     <div className="space-y-3">
+      {/* ✅ FILTROS - Usando componente genérico */}
       <FiltrosLancamentos
         filtroDataInicio={filtroDataInicio}
         setFiltroDataInicio={setFiltroDataInicio}
@@ -656,19 +474,18 @@ export default function TelaInicialLoja() {
         mostrarNumeroTransacao={true}
         mostrarTipo={true}
         labelsDataComoVencimento={true}
-        titulo="Filtros de Financeiro"
+        titulo="Filtros de Financeiro - Loja"
         tipo="geral"
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-        {/* Caixa reduzido para 25% da largura */}
         <div className="lg:col-span-1">
           <VisualizacaoCaixaDetalhada contexto="loja" />
         </div>
 
-        {/* Transações expandidas para 75% da largura */}
         <div className="lg:col-span-3">
           <div className="bg-white rounded-lg shadow-md p-3">
+            {/* ✅ BOTÃO "VER TODAS" / "MÊS ATUAL" */}
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold text-gray-800 text-sm">
                 {tituloLista}
@@ -677,19 +494,26 @@ export default function TelaInicialLoja() {
               </h3>
               <button
                 onClick={() => setVerTodas(!verTodas)}
-                className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                  verTodas 
+                    ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
               >
-                {verTodas ? 'Próximas Parcelas' : 'Ver Todas'}
+                {verTodas ? 'Mês Atual' : 'Ver Todas'}
               </button>
             </div>
 
-            {transacoesFiltradas.length === 0 ? (
+            {loading && transacoes.length === 0 ? (
               <div className="text-center py-4 text-gray-500 text-xs">
-                Nenhuma parcela encontrada
+                Carregando transações...
+              </div>
+            ) : transacoesFiltradas.length === 0 ? (
+              <div className="text-center py-4 text-gray-500 text-xs">
+                {verTodas ? 'Nenhuma transação encontrada' : 'Nenhuma parcela encontrada para o mês atual'}
               </div>
             ) : (
               <div className="overflow-x-auto">
-                {/* TABELA COM COLUNAS ADICIONAIS: Valor Pago e Diferença */}
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-gray-100 border-b border-gray-300">
@@ -713,7 +537,7 @@ export default function TelaInicialLoja() {
                       const temPag = temPagamento(transacao)
                       
                       return (
-                        <tr key={`${transacao.origem_id}-${index}`} className="border-b border-gray-200 hover:bg-gray-50">
+                        <tr key={`${transacao.id}-${index}`} className="border-b border-gray-200 hover:bg-gray-50">
                           <td className="px-1 py-0.5 text-gray-700" style={{ fontSize: '11px' }}>
                             {formatarDataParaExibicao(transacao.data)}
                           </td>
@@ -727,11 +551,10 @@ export default function TelaInicialLoja() {
                             )}
                           </td>
                           <td className="px-1 py-0.5 text-gray-700" style={{ fontSize: '11px' }}>
-                            #{transacao.numero_transacao}
+                            #{transacao.numero_transacao || 'N/A'}
                           </td>
                           <td className="px-1 py-0.5 text-gray-700 truncate max-w-[100px]" style={{ fontSize: '11px' }}>{transacao.descricao}</td>
                           
-                          {/* COLUNA VALOR DA PARCELA (ORIGINAL) */}
                           <td className="px-1 py-0.5 text-right">
                             <span className={
                               transacao.status_pagamento === 'pago'
@@ -746,7 +569,6 @@ export default function TelaInicialLoja() {
                             </span>
                           </td>
                           
-                          {/* ✅ COLUNA VALOR PAGO (SÓ SE HOUVER PAGAMENTO) */}
                           <td className="px-1 py-0.5 text-right">
                             {temPag ? (
                               <span className={
@@ -765,7 +587,6 @@ export default function TelaInicialLoja() {
                             )}
                           </td>
                           
-                          {/* ✅ COLUNA DIFERENÇA (SÓ SE HOUVER PAGAMENTO E DIFERENÇA) */}
                           <td className="px-1 py-0.5 text-right">
                             {temPag && diferenca !== 0 ? (
                               <span className={
@@ -805,7 +626,10 @@ export default function TelaInicialLoja() {
                                 onClick={() => {
                                   setModalEstornarTransacao({
                                     aberto: true,
-                                    transacao
+                                    transacao: {
+                                      ...transacao,
+                                      status_pagamento: transacao.status_pagamento || 'pendente'
+                                    }
                                   })
                                 }}
                                 className="text-yellow-500 hover:text-yellow-700 font-medium text-xs px-1.5 py-0.5 bg-yellow-50 rounded hover:bg-yellow-100 transition-colors"
@@ -818,7 +642,10 @@ export default function TelaInicialLoja() {
                                 onClick={() => {
                                   setModalPagarTransacao({
                                     aberto: true,
-                                    transacao
+                                    transacao: {
+                                      ...transacao,
+                                      status_pagamento: transacao.status_pagamento || 'pendente'
+                                    }
                                   })
                                 }}
                                 className="text-green-500 hover:text-green-700 font-medium text-xs px-1.5 py-0.5 bg-green-50 rounded hover:bg-green-100 transition-colors"

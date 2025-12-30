@@ -69,21 +69,21 @@ const getOntemBrasil = () => {
   
   // Criar data de ontem
   const dataOntem = new Date(anoHoje, mesHoje - 1, diaHoje - 1);
-  const anoOntem = dataOntem.getFullYear();
-  const mesOntem = String(dataOntem.getMonth() + 1).padStart(2, '0');
-  const diaOntem = String(dataOntem.getDate()).padStart(2, '0');
-  
-  return `${anoOntem}-${mesOntem}-${diaOntem}`;
+  return formatter.format(dataOntem);
 }
 
 // ✅ Função auxiliar para calcular a data N dias à frente
 const getDataNDias = (dataBase: string, dias: number) => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'America/Sao_Paulo'
+  });
+  
   const [ano, mes, dia] = dataBase.split('-').map(Number);
   const data = new Date(ano, mes - 1, dia + dias);
-  const anoNovo = data.getFullYear();
-  const mesNovo = String(data.getMonth() + 1).padStart(2, '0');
-  const diaNovo = String(data.getDate()).padStart(2, '0');
-  return `${anoNovo}-${mesNovo}-${diaNovo}`;
+  return formatter.format(data);
 }
 
 // Função auxiliar para adicionar meses a uma data
@@ -277,7 +277,7 @@ export default function ModuloCasa() {
       if (abaLancamentos === 'padrao') {
         if (form.parcelas === 1) {
           const dadosLancamento = {
-            // user_id: user.id,
+            user_id: user.id,
             descricao: descricaoMaiuscula,
             valor: valorNumerico,
             tipo: form.tipo,
@@ -285,14 +285,14 @@ export default function ModuloCasa() {
             data_lancamento: dataParaLancamento,
             data_prevista: form.data,
             status: form.status === 'pago' ? 'realizado' : 'previsto',
-            // caixa_id: CAIXA_ID_CASA,
+            caixa_id: CAIXA_ID_CASA,
             parcelamento: null,
             recorrencia: null
           }
 
           const { error } = await supabase
             .from('lancamentos_financeiros')
-            .insert(dadosLancamento)
+            .insert([dadosLancamento]) // ✅ CORREÇÃO: Colocar em array []
             .select()
 
           if (error) throw error
@@ -308,7 +308,7 @@ export default function ModuloCasa() {
             }
 
             lancamentosParcelados.push({
-              // user_id: user.id,
+              user_id: user.id,
               descricao: `${descricaoMaiuscula} (${i}/${form.parcelas})`,
               valor: valorParcela,
               tipo: form.tipo,
@@ -316,7 +316,7 @@ export default function ModuloCasa() {
               data_lancamento: dataParcela,
               data_prevista: dataParcela,
               status: 'previsto',
-              // caixa_id: CAIXA_ID_CASA,
+              caixa_id: CAIXA_ID_CASA,
               parcelamento: { atual: i, total: form.parcelas },
               recorrencia: null
             })
@@ -340,7 +340,7 @@ export default function ModuloCasa() {
           }
 
           lancamentosRecorrentes.push({
-            // user_id: user.id,
+            user_id: user.id,
             descricao: `${descricaoMaiuscula} (${i}/${form.recorrenciaQtd})`,
             valor: valorNumerico,
             tipo: form.tipo,
@@ -348,7 +348,7 @@ export default function ModuloCasa() {
             data_lancamento: dataLancamento,
             data_prevista: dataLancamento,
             status: 'previsto',
-            // caixa_id: CAIXA_ID_CASA,
+            caixa_id: CAIXA_ID_CASA,
             parcelamento: null,
             recorrencia: { tipo: 'quantidade', qtd: form.recorrenciaQtd, prazo: form.recorrenciaPrazo }
           })
@@ -419,13 +419,13 @@ export default function ModuloCasa() {
 
       const { error: errorUpdate } = await supabase
         .from('lancamentos_financeiros')
-        .update({ 
+        .update([{ // ✅ CORREÇÃO: Colocar em array []
           status: 'realizado',
           valor: valorPagoFinal,
           data_lancamento: dataAtual,
           descricao: novaDescricaoOriginal,
           parcelamento: novoParcelamento
-        })
+        }])
         .eq('id', lancamento.id)
 
       if (errorUpdate) throw errorUpdate
@@ -434,7 +434,7 @@ export default function ModuloCasa() {
         const novaDescricaoParcela = `${descricaoBase} (${totalParcelas + 1}/${totalParcelas + 1})`
         
         const dadosNovaParcela = {
-          // user_id: user.id,
+          user_id: user.id,
           descricao: novaDescricaoParcela,
           valor: valorRestante,
           tipo: lancamento.tipo,
@@ -450,7 +450,7 @@ export default function ModuloCasa() {
 
         const { error: errorInsert } = await supabase
           .from('lancamentos_financeiros')
-          .insert(dadosNovaParcela)
+          .insert([dadosNovaParcela]) // ✅ CORREÇÃO: Colocar em array []
           .select()
 
         if (errorInsert) throw errorInsert
@@ -551,7 +551,7 @@ export default function ModuloCasa() {
         data_lancamento: dataParaLancamento, 
         data_prevista: form.data,   
         status: form.status === 'pago' ? 'realizado' : 'previsto',
-        // caixa_id: CAIXA_ID_CASA,
+        caixa_id: CAIXA_ID_CASA,
         parcelamento: editandoLancamento.parcelamento,
         recorrencia: form.recorrenciaTipo !== 'nenhuma' ? {
           tipo: form.recorrenciaTipo,
@@ -561,7 +561,7 @@ export default function ModuloCasa() {
 
       const { error } = await supabase
         .from('lancamentos_financeiros')
-        .update(dadosLancamento)
+        .update([dadosLancamento]) // ✅ CORREÇÃO: Colocar em array []
         .eq('id', editandoLancamento.id)
 
       if (error) throw error
@@ -672,7 +672,8 @@ export default function ModuloCasa() {
       resultado = resultado.filter(lanc => lanc.status === filtroStatus)
     }
 
-    // ✅ MELHORIA: Por padrão, mostrar o mês atual inteiro em vez de apenas 11 dias
+    // ✅ CORREÇÃO: Aplicar filtro padrão de 11 dias apenas quando NÃO estiver em "VER TUDO"
+    // e quando NÃO houver nenhum filtro ativo
     if (!mostrarTodos && 
         !filtroDataInicio && 
         !filtroDataFim && 
@@ -681,19 +682,15 @@ export default function ModuloCasa() {
         !filtroCDC && 
         !filtroStatus) {
       
-      const mesAtual = new Date().toISOString().substring(0, 7) // YYYY-MM
-      console.log(`Filtro padrão: Mês Atual (${mesAtual})`)
+      const inicio = getOntemBrasil()
+      const fim = getDataNDias(inicio, 10)
+      
+      console.log(`Filtro padrão 11 dias: ${inicio} até ${fim}`)
       
       resultado = resultado.filter(lanc => {
         const dataLanc = lanc.data_prevista || lanc.data_lancamento
-        return dataLanc.startsWith(mesAtual)
+        return dataLanc >= inicio && dataLanc <= fim
       })
-
-      // Se não houver nada no mês atual, mostra os últimos 30 dias por segurança
-      if (resultado.length === 0 && dados.todosLancamentosCasa.length > 0) {
-        console.log('Nenhum dado no mês atual, mostrando tudo por padrão.')
-        resultado = [...dados.todosLancamentosCasa].slice(0, 50) // Mostra os 50 mais recentes
-      }
     }
 
     console.log(`✅ Resultado final: ${resultado.length} lançamentos`)
@@ -754,7 +751,9 @@ export default function ModuloCasa() {
     if (filtroMes) return `Lançamentos de ${filtroMes}`
     if (filtroDataInicio || filtroDataFim) return 'Lançamentos Filtrados'
     
-    return 'Lançamentos Recentes'
+    const inicio = getOntemBrasil()
+    const fim = getDataNDias(inicio, 10)
+    return `Próximos 11 Dias (${formatarDataParaExibicao(inicio)} a ${formatarDataParaExibicao(fim)})`
   }
 
   const tituloTabela = getTituloTabela()

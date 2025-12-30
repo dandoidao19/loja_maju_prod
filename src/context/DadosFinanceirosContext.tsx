@@ -88,7 +88,6 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
     return data || []
   }, [])
 
-  // ✅ CORREÇÃO: Função DEFINITIVA - Buscar TODOS os lançamentos com PAGINAÇÃO (até 3000 registros)
   const buscarLancamentos = useCallback(async (
     contexto: 'casa' | 'loja',
     periodo?: { inicio: string; fim: string }
@@ -97,7 +96,6 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return []
 
-      // ETAPA 1: Buscar IDs dos centros de custo do contexto
       const { data: centros, error: errorCentros } = await supabase
         .from('centros_de_custo')
         .select('id')
@@ -107,11 +105,8 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
         console.error(`❌ Erro ao buscar centros de custo ${contexto}:`, errorCentros)
       }
 
-      // MELHORIA: Se não houver centros de custo, ainda assim tenta buscar lançamentos do usuário
-      // para evitar que o sistema trave se o banco estiver vazio ou com estrutura diferente
       const centroIds = centros ? centros.map(c => c.id) : []
       
-      // ETAPA 2: Buscar TODOS os lançamentos com PAGINAÇÃO
       const LIMITE_POR_PAGINA = 1000
       const LIMITE_TOTAL = 3000
       let todosLancamentos: any[] = []
@@ -129,9 +124,7 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
             *,
             centros_de_custo(nome)
           `)
-          // .eq('user_id', user.id) - Removido para permitir modo colaborativo
           
-        // Só aplica o filtro de centro_custo_id se houver IDs, senão busca todos do usuário
         if (centroIds.length > 0) {
           query = query.in('centro_custo_id', centroIds)
         }
@@ -158,7 +151,6 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
           console.log(`📄 ${contexto} - Página ${pagina + 1}: ${data.length} registros`)
           pagina++
           
-          // Verificar se há mais registros
           if (data.length < LIMITE_POR_PAGINA) {
             temMaisRegistros = false
           }
@@ -169,7 +161,7 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
 
       console.log(`✅ ${contexto} - Total lançamentos carregados:`, todosLancamentos.length)
       if (todosLancamentos.length === 0) {
-        console.warn(`⚠️ Nenhum lançamento encontrado para o contexto ${contexto}. Verifique se o usuário possui registros vinculados ao seu ID no Supabase.`)
+        console.warn(`⚠️ Nenhum lançamento encontrado para o contexto ${contexto}.`)
       }
       return todosLancamentos
 
@@ -179,97 +171,85 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
     }
   }, [])
 
-  // ✅ CORREÇÃO: Função DEFINITIVA para calcular caixa real (AGORA USA valor_pago)
+  // ✅ CORREÇÃO DEFINITIVA: Calcula igual ao Caixa Previsto - APENAS status REALIZADO, sem filtro de centro_custo_id
   const calcularCaixaReal = useCallback(async (contexto: 'casa' | 'loja') => {
     try {
       const hoje = getDataAtualBrasil()
+      console.log(`💰 Calculando caixa real ${contexto} (IGUAL ao Caixa Previsto de HOJE)...`)
       
       if (contexto === 'loja') {
-        // ✅ PARA CONTEXTO LOJA: Calcular baseado em transacoes_loja
-        // AGORA usando valor_pago se existir, senão total
-        const { data: transacoesRealizadas } = await supabase
+        // ✅ LOJA: Soma todas as transações PAGAS até HOJE
+        const { data: transacoes, error } = await supabase
           .from('transacoes_loja')
-          .select('tipo, total, data, data_pagamento, status_pagamento, valor_pago, juros_descontos')
+          .select('tipo, total, valor_pago')
           .eq('status_pagamento', 'pago')
-          
-        let caixa = 0
+          .lte('data', hoje)
         
-        if (transacoesRealizadas) {
-          transacoesRealizadas.forEach((trans: any) => {
-            // ✅ USAR data_pagamento SE EXISTIR E FOR VÁLIDA, SENÃO USAR data
-            const dataParaComparacao = trans.data_pagamento || trans.data
-            
-            // Verificar se a data de pagamento/vencimento é <= hoje
-            if (new Date(dataParaComparacao) <= new Date(hoje)) {
-              // ✅ USAR valor_pago SE EXISTIR, SENÃO USAR total
-              const valorImpacto = trans.valor_pago !== null ? trans.valor_pago : trans.total
-              
-              if (trans.tipo === 'entrada') {
-                caixa += valorImpacto
-              } else {
-                caixa -= valorImpacto
-              }
+        if (error) {
+          console.error(`❌ Erro ao buscar transações loja:`, error)
+          return 0
+        }
+        
+        let caixa = 0
+        if (transacoes) {
+          transacoes.forEach((trans: any) => {
+            const valor = trans.valor_pago !== null ? trans.valor_pago : trans.total
+            if (trans.tipo === 'entrada') {
+              caixa += valor
+            } else {
+              caixa -= valor
             }
           })
         }
         
-        console.log(`💰 Caixa real LOJA calculado (usando valor_pago): R$ ${caixa.toFixed(2)}`)
+        console.log(`💰 Caixa real LOJA: R$ ${caixa.toFixed(2)} (${transacoes?.length || 0} transações)`)
         return caixa
+        
       } else {
-        // ✅ PARA CONTEXTO CASA: Calcular baseado em lancamentos_financeiros
+        // ✅ CASA: Soma todos os lançamentos REALIZADOS até HOJE (SEM filtrar por centro_custo_id)
+        // Isso é o MESMO que o Caixa Previsto faz!
         
-        // ETAPA 1: Buscar IDs dos centros de custo
-        const { data: centros } = await supabase
-          .from('centros_de_custo')
-          .select('id')
-          .eq('contexto', contexto)
-
-        if (!centros || centros.length === 0) return 0
-
-        // ETAPA 2: Buscar lançamentos realizados com paginação
-        const centroIds = centros.map(c => c.id)
-        const LIMITE_POR_PAGINA = 1000
-        let caixa = 0
-        let pagina = 0
-        let temMaisRegistros = true
+        console.log('🏠 CASA - Calculando caixa real (TODOS lançamentos REALIZADOS até hoje, SEM filtro de centro_custo_id)')
         
-        while (temMaisRegistros) {
-          const inicio = pagina * LIMITE_POR_PAGINA
-          
-          const { data: lancamentosRealizados, error } = await supabase
-            .from('lancamentos_financeiros')
-            .select('valor, tipo')
-            .eq('status', 'realizado')
-            .lte('data_lancamento', hoje)
-            .in('centro_custo_id', centroIds)
-            .range(inicio, inicio + LIMITE_POR_PAGINA - 1)
-
-          if (error) {
-            console.error(`❌ Erro ao calcular caixa página ${pagina + 1}:`, error)
-            break
-          }
-
-          if (lancamentosRealizados && lancamentosRealizados.length > 0) {
-            lancamentosRealizados.forEach((lanc: any) => {
-              if (lanc.tipo === 'entrada') {
-                caixa += lanc.valor
-              } else {
-                caixa -= lanc.valor
-              }
-            })
-            pagina++
-            
-            if (lancamentosRealizados.length < LIMITE_POR_PAGINA) {
-              temMaisRegistros = false
-            }
-          } else {
-            temMaisRegistros = false
-          }
+        const { data: lancamentos, error } = await supabase
+          .from('lancamentos_financeiros')
+          .select('valor, tipo, caixa_id')
+          .eq('status', 'realizado')
+          .eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b') // ID do caixa casa
+          .lte('data_lancamento', hoje)
+        
+        if (error) {
+          console.error(`❌ Erro ao buscar lançamentos casa:`, error)
+          return 0
         }
-
-        console.log(`💰 Caixa real CASA calculado: R$ ${caixa.toFixed(2)}`)
+        
+        let caixa = 0
+        let entradas = 0
+        let saidas = 0
+        
+        if (lancamentos && lancamentos.length > 0) {
+          console.log(`🏠 CASA - ${lancamentos.length} lançamentos realizados encontrados`)
+          
+          lancamentos.forEach((lanc: any) => {
+            if (lanc.tipo === 'entrada') {
+              caixa += lanc.valor
+              entradas += lanc.valor
+            } else {
+              caixa -= lanc.valor
+              saidas += lanc.valor
+            }
+          })
+          
+          console.log(`  Entradas: R$ ${entradas.toFixed(2)}`)
+          console.log(`  Saídas: R$ ${saidas.toFixed(2)}`)
+        } else {
+          console.log('🏠 CASA - Nenhum lançamento realizado encontrado')
+        }
+        
+        console.log(`💰 Caixa real CASA: R$ ${caixa.toFixed(2)}`)
         return caixa
       }
+      
     } catch (error) {
       console.error(`❌ Erro ao calcular caixa real ${contexto}:`, error)
       return 0
@@ -282,7 +262,6 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
     console.log('🔄 Iniciando recarregamento de dados...')
 
     try {
-      // Buscar centros de custo primeiro
       const [centrosCasa, centrosLoja] = await Promise.all([
         buscarCentrosCusto('casa'),
         buscarCentrosCusto('loja')
@@ -293,7 +272,6 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
         loja: centrosLoja.length
       })
 
-      // Buscar lançamentos e caixa em paralelo
       const [
         lancamentosCasa,
         lancamentosLoja,
@@ -378,22 +356,20 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
 
   // Atualizar apenas caixa real
   const atualizarCaixaReal = useCallback(async (contexto: 'casa' | 'loja') => {
-    console.log(`💰 Atualizando caixa real ${contexto}...`)
+    console.log(`💰 Atualizando apenas caixa real ${contexto}...`)
     
     const caixa = await calcularCaixaReal(contexto)
     
     if (contexto === 'casa') {
       setDados(prev => ({ 
         ...prev, 
-        caixaRealCasa: caixa,
-        ultimaAtualizacao: Date.now()
+        caixaRealCasa: caixa
       }))
       console.log(`✅ Caixa real CASA atualizado: R$ ${caixa.toFixed(2)}`)
     } else {
       setDados(prev => ({ 
         ...prev, 
-        caixaRealLoja: caixa,
-        ultimaAtualizacao: Date.now()
+        caixaRealLoja: caixa
       }))
       console.log(`✅ Caixa real LOJA atualizado: R$ ${caixa.toFixed(2)}`)
     }
@@ -417,6 +393,7 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
 
   // Carregar dados iniciais
   useEffect(() => {
+    console.log('📥 Carregando dados iniciais do contexto...')
     recarregarDados()
   }, [recarregarDados])
 
