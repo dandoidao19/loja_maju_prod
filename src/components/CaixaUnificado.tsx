@@ -2,7 +2,7 @@
 // src/components/CaixaUnificado.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCaixaUnificado, SaldoDiario } from '@/hooks/useCaixaUnificado';
 
 // Função para formatar a data como DD/MM/AAAA
@@ -16,43 +16,92 @@ const formatarValor = (valor: number) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+const gerarMeses = () => {
+    const meses = [];
+    const hoje = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const ano = data.getFullYear();
+      const mes = String(data.getMonth() + 1).padStart(2, '0');
+      const valor = `${ano}-${mes}`;
+      const nomeMes = data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      meses.push({ valor, nome: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1) });
+    }
+    for (let i = 1; i <= 12; i++) {
+        const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+        const ano = data.getFullYear();
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const valor = `${ano}-${mes}`;
+        const nomeMes = data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        meses.push({ valor, nome: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1) });
+      }
+    return meses;
+};
+
 export default function CaixaUnificado() {
   const { data: saldos, isLoading, isError, error } = useCaixaUnificado();
-  const [mostrarTodos, setMostrarTodos] = useState(false);
+  const [modoExibicao, setModoExibicao] = useState<'proximos30' | 'tudo' | 'mes'>('proximos30');
+  const [filtroMes, setFiltroMes] = useState('');
+  const meses = useMemo(() => gerarMeses(), []);
 
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-6 text-center">
-        <p className="text-lg text-gray-600 animate-pulse">Calculando caixa unificado...</p>
-      </div>
-    );
-  }
+  const dadosExibidos = useMemo(() => {
+    if (isLoading || isError || !saldos) return [];
 
-  if (isError) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-6 text-center text-red-500">
-        <h3 className="text-lg font-bold mb-2">Erro ao Carregar Dados</h3>
-        <p className="text-sm">{error?.message}</p>
-      </div>
-    );
-  }
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
-  // Filtrar os dados para os últimos 30 dias se `mostrarTodos` for falso
-  const dadosExibidos = mostrarTodos
-    ? saldos
-    : saldos?.slice(0, 30);
+    switch (modoExibicao) {
+      case 'proximos30':
+        const dataFim = new Date();
+        dataFim.setDate(hoje.getDate() + 30);
+        return saldos.filter(saldo => {
+          const dataSaldo = new Date(saldo.data + 'T12:00:00');
+          return dataSaldo >= hoje && dataSaldo <= dataFim;
+        });
+
+      case 'tudo':
+        return saldos.filter(saldo => {
+            const dataSaldo = new Date(saldo.data + 'T12:00:00');
+            return dataSaldo >= hoje;
+        });
+
+      case 'mes':
+        if (!filtroMes) return [];
+        return saldos.filter(saldo => saldo.data.startsWith(filtroMes));
+
+      default:
+        return [];
+    }
+  }, [saldos, modoExibicao, filtroMes]);
+
+  const handleMesChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const mes = e.target.value;
+    setFiltroMes(mes);
+    setModoExibicao(mes ? 'mes' : 'proximos30');
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto p-6 border border-gray-100">
-      {/* Cabeçalho */}
-      <div className="flex justify-between items-center mb-6 pb-4 border-b">
-        <h2 className="text-2xl font-bold text-gray-800">Resumo Unificado (Casa + Loja)</h2>
-        <button
-          onClick={() => setMostrarTodos(!mostrarTodos)}
-          className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-        >
-          {mostrarTodos ? 'Ver Últimos 30 Dias' : 'Ver Tudo'}
-        </button>
+    <div className="bg-white rounded-lg shadow-xl w-full p-4 border border-gray-100">
+      <div className="flex flex-wrap justify-between items-center mb-4 pb-2 border-b">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 sm:mb-0">Resumo Unificado (Casa + Loja)</h2>
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={filtroMes}
+            onChange={handleMesChange}
+            className="px-3 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="">Filtrar por mês...</option>
+            {meses.map(m => (
+              <option key={m.valor} value={m.valor}>{m.nome}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setModoExibicao(modoExibicao === 'tudo' ? 'proximos30' : 'tudo')}
+            className="px-3 py-1 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            {modoExibicao === 'tudo' ? 'Ver Próximos 30 Dias' : 'Ver Tudo'}
+          </button>
+        </div>
       </div>
 
       {/* Tabela de Saldos Diários */}

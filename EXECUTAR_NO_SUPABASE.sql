@@ -58,3 +58,37 @@ CREATE TRIGGER update_transacoes_condicionais_updated_at
 -- 5. Clique em "Run" (ou pressione Ctrl+Enter)
 -- 6. Aguarde a confirmação de sucesso
 -- ============================================
+
+-- ============================================
+-- Funcionalidade "Orçamento e Metas"
+-- ============================================
+
+-- Tabela para Orçamentos da Casa (Despesas)
+CREATE TABLE IF NOT EXISTS orcamentos_casa (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  categoria_id UUID REFERENCES centros_de_custo(id) NOT NULL,
+  valor DECIMAL(10, 2) NOT NULL,
+  mes_ano DATE NOT NULL,
+  UNIQUE(user_id, categoria_id, mes_ano)
+);
+
+-- Tabela para Metas da Casa (Receitas)
+CREATE TABLE IF NOT EXISTS metas_casa (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  centro_custo_id UUID REFERENCES centros_de_custo(id) NOT NULL,
+  valor DECIMAL(10, 2) NOT NULL,
+  mes_ano DATE NOT NULL,
+  UNIQUE(user_id, centro_custo_id, mes_ano)
+);
+
+-- Tabela para Orçamentos e Metas da Loja
+CREATE TABLE IF NOT EXISTS orcamentos_loja (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  valor_maximo_estoque DECIMAL(10, 2),
+  meta_lucro_mes DECIMAL(10, 2),
+  mes_ano DATE NOT NULL,
+  UNIQUE(user_id, mes_ano)
+);

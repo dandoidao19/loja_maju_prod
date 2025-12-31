@@ -107,7 +107,15 @@ export default function Dashboard() {
             </nav>
 
             <main>
-              {activeSection === 'dashboard' && <CaixaUnificado />}
+              {activeSection === 'dashboard' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <CaixaUnificado />
+                  </div>
+                  {/* Espaço reservado à direita para futuros demonstrativos */}
+                  <div className="lg:col-span-1"></div>
+                </div>
+              )}
               {activeSection === 'casa' && <ModuloCasa />}
               {activeSection === 'loja' && <ModuloLoja />}
               {activeSection === 'configuracoes' && <ModuloConfiguracoes />}

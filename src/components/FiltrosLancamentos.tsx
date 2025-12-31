@@ -178,14 +178,14 @@ export default function FiltrosLancamentos({
 
             <div className="col-span-1">
               <label className="block text-[9px] font-medium text-gray-700 mb-0.5">
-                Mês Fechado
+                Mês
               </label>
               <select
                 value={filtroMes}
                 onChange={(e) => setFiltroMes(e.target.value)}
                 className="w-full px-1.5 py-0.5 text-[10px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                <option value="">Todos</option>
+                <option value="">Selecione</option>
                 {meses.map(m => (
                   <option key={m.valor} value={m.valor} className="text-[10px]">{m.nome}</option>
                 ))}
@@ -263,6 +263,18 @@ export default function FiltrosLancamentos({
               className="px-2 py-0.5 bg-gray-500 text-white text-[10px] rounded hover:bg-gray-600 transition-colors"
             >
               🗑️ Limpar
+            </button>
+
+            <button
+                onClick={() => {
+                    // Lógica para aplicar o filtro do mês selecionado
+                    // Esta lógica será acionada pelo onChange do select,
+                    // mas o botão serve como um indicador visual de ação.
+                    // Se uma ação explícita for necessária, ela iria aqui.
+                }}
+                className="px-2 py-0.5 bg-blue-500 text-white text-[10px] rounded hover:bg-blue-600 transition-colors whitespace-nowrap"
+            >
+                Ver Mês
             </button>
 
             {onGerarPDF && (
