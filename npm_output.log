@@ -2,15 +2,20 @@
 > loja-maju@0.1.0 dev
 > next dev
 
-⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
+⚠ Port 3000 is in use by an unknown process, using available port 3003 instead.
 ▲ Next.js 16.1.1 (Turbopack)
-- Local:         http://localhost:3001
-- Network:       http://192.168.0.2:3001
+- Local:         http://localhost:3003
+- Network:       http://192.168.0.2:3003
 - Environments: .env.local
 
 ✓ Starting...
-⚠ Turbopack's filesystem cache has been deleted because we previously detected an internal error in Turbopack. Builds or page loads may be slower as a result.
-✓ Ready in 1678ms
+✓ Ready in 2.6s
 ○ Compiling / ...
- GET / 200 in 7.1s (compile: 6.5s, render: 554ms)
- GET / 200 in 74ms (compile: 6ms, render: 68ms)
+ GET / 200 in 6.9s (compile: 6.2s, render: 785ms)
+ GET /dashboard 200 in 2.1s (compile: 1691ms, render: 372ms)
+ GET / 200 in 65ms (compile: 6ms, render: 59ms)
+ GET /dashboard 200 in 74ms (compile: 5ms, render: 69ms)
+ GET / 200 in 69ms (compile: 5ms, render: 64ms)
+ GET /dashboard 200 in 364ms (compile: 71ms, render: 292ms)
+ GET / 200 in 71ms (compile: 6ms, render: 65ms)
+ GET /dashboard 200 in 346ms (compile: 67ms, render: 279ms)
