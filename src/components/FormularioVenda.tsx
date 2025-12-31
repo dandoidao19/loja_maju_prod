@@ -220,18 +220,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
       console.log(`📅 Parcela ${i} formatada: ${dataParcelaFormatada}`)
 
       let statusParcela = 'pendente'
-      let valorPago = null
-      let dataPagamento = null
-
       if (statusPagamento === 'pago') {
         statusParcela = 'pago'
-        valorPago = valorParcela
-        dataPagamento = prepararDataParaInsert(getDataAtualBrasil())
       } else if (statusPagamento === 'parcial' && i === 1) {
-        // Para pagamento parcial, apenas a primeira parcela é marcada como paga
         statusParcela = 'pago'
-        valorPago = valorParcela
-        dataPagamento = prepararDataParaInsert(getDataAtualBrasil())
       }
 
       // CORREÇÃO: Gerar número único usando timestamp para evitar conflitos
@@ -250,9 +242,7 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
         total: valorParcela,
         tipo: 'entrada',
         data: dataParcelaFormatada,
-        status_pagamento: statusParcela,
-        valor_pago: valorPago,
-        data_pagamento: dataPagamento,
+        status_pagamento: statusParcela
       })
     }
 
@@ -638,11 +628,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
         {/* Data e Cliente */}
         <div className="grid grid-cols-2 gap-1">
           <div>
-            <label htmlFor="data-venda" className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Data da Venda
             </label>
             <input
-              id="data-venda"
               type="date"
               value={dataVenda}
               onChange={(e) => setDataVenda(e.target.value)}
@@ -650,11 +639,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
             />
           </div>
           <div>
-            <label htmlFor="cliente-venda" className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Cliente *
             </label>
             <input
-              id="cliente-venda"
               type="text"
               value={cliente}
               onChange={(e) => setCliente(e.target.value)}
@@ -706,9 +694,8 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
               <h3 className="font-semibold text-gray-800 text-xs">
                 Item {itens.length} (Em Preenchimento)
               </h3>
-              <label htmlFor="novo-cadastro-checkbox" className="flex items-center gap-1 cursor-pointer">
+              <label className="flex items-center gap-1 cursor-pointer">
                 <input
-                  id="novo-cadastro-checkbox"
                   type="checkbox"
                   checked={itemAtivo.isNovoCadastro || false}
                   onChange={() => toggleNovoCadastro(itemAtivo.id)}
@@ -734,11 +721,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
                 </div>
               ) : (
                 <div>
-                  <label htmlFor="descricao-produto" className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Descrição do Produto *
                   </label>
                   <input
-                    id="descricao-produto"
                     type="text"
                     value={itemAtivo.descricao}
                     onChange={(e) => atualizarItem(itemAtivo.id, 'descricao', e.target.value)}
@@ -750,12 +736,11 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
               )}
 
               <div>
-                <label htmlFor="categoria-produto" className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Categoria *
                 </label>
                 {!itemAtivo.isNovoCadastro ? (
                   <input
-                    id="categoria-produto"
                     type="text"
                     value={itemAtivo.categoria}
                     disabled
@@ -763,7 +748,6 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
                   />
                 ) : (
                   <select
-                    id="categoria-produto"
                     value={itemAtivo.categoria}
                     onChange={(e) => atualizarItem(itemAtivo.id, 'categoria', e.target.value)}
                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -780,11 +764,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
               </div>
 
               <div>
-                <label htmlFor="quantidade-produto" className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Quantidade *
                 </label>
                 <input
-                  id="quantidade-produto"
                   type="number"
                   value={itemAtivo.quantidade}
                   onChange={(e) =>
@@ -797,11 +780,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
 
               {itemAtivo.isNovoCadastro && (
                 <div>
-                  <label htmlFor="preco-custo-produto" className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Preço de Custo *
                   </label>
                   <input
-                    id="preco-custo-produto"
                     type="number"
                     step="0.01"
                     value={itemAtivo.preco_custo}
@@ -819,11 +801,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
               )}
 
               <div>
-                <label htmlFor="preco-venda-produto" className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Preço de Venda *
                 </label>
                 <input
-                  id="preco-venda-produto"
                   type="number"
                   step="0.01"
                   value={itemAtivo.preco_venda}
@@ -839,11 +820,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
                 <h4 className="font-semibold text-gray-800 mb-2 text-xs">Informações de Pagamento</h4>
                 <div className="grid grid-cols-2 gap-1 mb-2">
                   <div>
-                    <label htmlFor="data-vencimento" className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Data de Vencimento *
                     </label>
                     <input
-                      id="data-vencimento"
                       type="date"
                       value={dataVencimento}
                       onChange={(e) => setDataVencimento(e.target.value)}
@@ -852,11 +832,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
                     />
                   </div>
                   <div>
-                    <label htmlFor="quantidade-parcelas" className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Parcelas
                     </label>
                     <input
-                      id="quantidade-parcelas"
                       type="number"
                       min="1"
                       value={quantidadeParcelas}
@@ -867,11 +846,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   <div>
-                    <label htmlFor="prazo-parcelas" className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Prazo
                     </label>
                     <select
-                      id="prazo-parcelas"
                       value={prazoParcelas}
                       onChange={(e) => setPrazoParcelas(e.target.value)}
                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -882,11 +860,10 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="status-pagamento" className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Status
                     </label>
                     <select
-                      id="status-pagamento"
                       value={statusPagamento}
                       onChange={(e) => setStatusPagamento(e.target.value)}
                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
