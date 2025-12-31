@@ -229,10 +229,17 @@ export default function FormularioCompra({ onCompraAdicionada }: FormularioCompr
       console.log(`📅 Parcela ${i} formatada: ${dataParcelaFormatada}`)
 
       let statusParcela = 'pendente'
+      let valorPago = null
+      let dataPagamento = null
+
       if (statusPagamento === 'pago') {
         statusParcela = 'pago'
+        valorPago = valorParcela
+        dataPagamento = prepararDataParaInsert(getDataAtualBrasil())
       } else if (statusPagamento === 'parcial' && i === 1) {
         statusParcela = 'pago'
+        valorPago = valorParcela
+        dataPagamento = prepararDataParaInsert(getDataAtualBrasil())
       }
 
       // Usar número aleatório para cada transação
@@ -248,7 +255,9 @@ export default function FormularioCompra({ onCompraAdicionada }: FormularioCompr
         total: valorParcela,
         tipo: 'saida',
         data: dataParcelaFormatada,
-        status_pagamento: statusParcela
+        status_pagamento: statusParcela,
+        valor_pago: valorPago,
+        data_pagamento: dataPagamento,
       })
     }
 
