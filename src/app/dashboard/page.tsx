@@ -4,7 +4,7 @@
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import ResumoCaixas from '@/components/ResumoCaixas'
+import Dashboard from '@/components/Dashboard'
 import ModuloCasa from '@/components/ModuloCasa'
 import ModuloConfiguracoes from '@/components/ModuloConfiguracoes'
 import ModuloLoja from '@/components/ModuloLoja'
@@ -140,7 +140,7 @@ export default function Dashboard() {
           {/* Conteúdo Dinâmico */}
           {devFeaturesEnabled && activeSection === 'dashboard' && (
             <div>
-              <ResumoCaixas />
+              <Dashboard />
             </div>
           )}
           

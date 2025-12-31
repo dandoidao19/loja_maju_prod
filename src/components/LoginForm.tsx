@@ -20,6 +20,7 @@ export default function LoginForm() {
       })
 
       if (error) {
+        console.error('Supabase SignIn Error:', error) // Log a mais para depuração
         // Se não conseguiu login, tenta cadastrar
         const { error: signUpError } = await supabase.auth.signUp({
           email,
@@ -27,6 +28,7 @@ export default function LoginForm() {
         })
 
         if (signUpError) {
+          console.error('Supabase SignUp Error:', signUpError) // Log a mais para depuração
           alert('Erro: ' + signUpError.message)
         } else {
           alert('Cadastrado com sucesso! Faça login agora.')
