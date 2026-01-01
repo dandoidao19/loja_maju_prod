@@ -207,11 +207,13 @@ export default function TelaInicialLoja() {
     }
   }, [buscarTransacoes])
 
-  // Função para obter a data daqui a N dias no formato AAAA-MM-DD
+  // Função para obter a data daqui a N dias no formato AAAA-MM-DD, baseada na data do Brasil
   const obterDataFutura = (dias: number): string => {
-    const hoje = new Date();
-    hoje.setDate(hoje.getDate() + dias);
-    return hoje.toISOString().split('T')[0];
+    const hojeStr = getDataAtualBrasil();
+    // Usar T12:00:00 para evitar problemas de fuso horário e horário de verão ao manipular a data
+    const dataBase = new Date(`${hojeStr}T12:00:00`);
+    dataBase.setDate(dataBase.getDate() + dias);
+    return dataBase.toISOString().split('T')[0];
   }
 
   const estaNoPeriodo = useCallback((dataString: string, inicio: string, fim: string) => {
@@ -478,8 +480,6 @@ export default function TelaInicialLoja() {
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold text-gray-800 text-sm">
                 {tituloLista}
-                {transacoesFiltradas.length !== transacoes.length &&
-                  ` (${transacoesFiltradas.length} de ${transacoes.length} filtradas)`}
               </h3>
               <button
                 onClick={() => setVerTodas(!verTodas)}

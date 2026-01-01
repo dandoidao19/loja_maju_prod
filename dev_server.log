@@ -1,0 +1,10 @@
+
+> loja-maju@0.1.0 dev
+> next dev -p 3006
+
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3006
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3006)
+    at new Prom○ Compiling / ...
+ GET / 200 in 8.4s (compile: 7.8s, render: 579ms)
+ GET /dashboard 200 in 2.8s (compile: 2.4s, render: 420ms)

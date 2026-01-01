@@ -179,11 +179,12 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
       
       if (contexto === 'loja') {
         // ✅ LOJA: Soma todas as transações PAGAS até HOJE
+        // ✅ CORREÇÃO: Usar 'data_pagamento' para o cálculo do caixa real
         const { data: transacoes, error } = await supabase
           .from('transacoes_loja')
           .select('tipo, total, valor_pago')
           .eq('status_pagamento', 'pago')
-          .lte('data', hoje)
+          .lte('data_pagamento', hoje)
         
         if (error) {
           console.error(`❌ Erro ao buscar transações loja:`, error)

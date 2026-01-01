@@ -108,12 +108,10 @@ export default function Dashboard() {
 
             <main>
               {activeSection === 'dashboard' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <CaixaUnificado />
-                  </div>
-                  {/* Espaço reservado à direita para futuros demonstrativos */}
-                  <div className="lg:col-span-1"></div>
+                // Alterado para um layout que permite ao CaixaUnificado se expandir
+                // e se comportar como os outros módulos principais.
+                <div>
+                  <CaixaUnificado />
                 </div>
               )}
               {activeSection === 'casa' && <ModuloCasa />}

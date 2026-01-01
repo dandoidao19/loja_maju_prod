@@ -257,7 +257,7 @@ export default function FiltrosLancamentos({
             </div>
           </div>
 
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-2 whitespace-nowrap">
             <button
               onClick={onLimpar}
               className="px-2 py-0.5 bg-gray-500 text-white text-[10px] rounded hover:bg-gray-600 transition-colors"
@@ -272,7 +272,7 @@ export default function FiltrosLancamentos({
                     // mas o botão serve como um indicador visual de ação.
                     // Se uma ação explícita for necessária, ela iria aqui.
                 }}
-                className="px-2 py-0.5 bg-blue-500 text-white text-[10px] rounded hover:bg-blue-600 transition-colors whitespace-nowrap"
+                className="px-2 py-0.5 bg-blue-500 text-white text-[10px] rounded hover:bg-blue-600 transition-colors"
             >
                 Ver Mês
             </button>

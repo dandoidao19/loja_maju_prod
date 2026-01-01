@@ -430,10 +430,7 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
       }
     } else {
       if (mostrando30Dias) {
-        const hoje = getDataAtualBrasil()
-        const ontem = calcularDataNDias(hoje, -1)
-        const fim30Dias = calcularDataNDias(ontem, 29)
-        return `30 Dias: ${formatarDataParaExibicao(ontem)} a ${formatarDataParaExibicao(fim30Dias)}`
+        return `30 Dias`
       } else if (mesFiltro) {
         const [ano, mes] = mesFiltro.split('-')
         return `Mês: ${mes}/${ano}`
