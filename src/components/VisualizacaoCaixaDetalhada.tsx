@@ -15,7 +15,8 @@ const calcularDataNDias = (dataBase: string, dias: number) => {
 export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { contexto: 'casa' | 'loja', titulo?: string }) {
   const { dados } = useDadosFinanceiros()
 
-  const [modo, setModo] = useState(contexto === 'loja' ? '30dias' : 'mes');
+  // Correção: a visualização padrão da casa deve ser '10 dias', não 'mês'.
+  const [modo, setModo] = useState(contexto === 'casa' ? '10dias' : '30dias');
   const [mesFiltro, setMesFiltro] = useState(() => {
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -30,10 +31,11 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
       const dataFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`;
       return { contexto, dataInicio, dataFim };
     }
-    // modo '30dias' ou padrão
-    if (contexto === 'casa') {
+    // modo '10dias' para casa, '30dias' para loja
+    if (modo !== 'mes') {
+        const dias = contexto === 'casa' ? 10 : 30;
         const dataInicio = hoje;
-        const dataFim = calcularDataNDias(hoje, 10);
+        const dataFim = calcularDataNDias(hoje, dias);
         return { contexto, dataInicio, dataFim };
     }
     const dataInicio = hoje;
@@ -54,6 +56,7 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
     if (modo === 'mes') return `Mês: ${mesFiltro.split('-')[1]}/${mesFiltro.split('-')[0]}`;
     return contexto === 'casa' ? `Próximos 10 Dias` : `Próximos 30 Dias`;
   };
+
 
   return (
     <div className="bg-white rounded-lg shadow-md p-1 space-y-1">
@@ -78,16 +81,14 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
         <div className="flex justify-between items-center mb-1">
           <h3 className="font-semibold text-gray-700" style={{ fontSize: '12px' }}>{getTituloPrevisao()}</h3>
           <div className="flex gap-0.5">
-            {modo !== 'mes' ? (
-                <button onClick={() => setModo('mes')} className="px-1.5 py-0.5 bg-blue-500 text-white hover:bg-blue-600 rounded text-xs font-medium">Ver Mês</button>
+            {modo === 'mes' ? (
+                 <button onClick={() => setModo(contexto === 'casa' ? '10dias' : '30dias')} className="px-1.5 py-0.5 bg-gray-500 text-white hover:bg-gray-600 rounded text-xs font-medium">
+                    {contexto === 'casa' ? '10 Dias' : '30 Dias'}
+                 </button>
             ) : (
-                <>
-                    <input type="month" value={mesFiltro} onChange={e => setMesFiltro(e.target.value)} className="px-1.5 py-0.5 text-xs border border-gray-300 rounded"/>
-                    <button onClick={() => setModo('30dias')} className="px-1.5 py-0.5 bg-gray-500 text-white hover:bg-gray-600 rounded text-xs font-medium">
-                        {contexto === 'casa' ? '10 Dias' : '30 Dias'}
-                    </button>
-                </>
+                <button onClick={() => setModo('mes')} className="px-1.5 py-0.5 bg-blue-500 text-white hover:bg-blue-600 rounded text-xs font-medium">Ver Mês</button>
             )}
+             <input type="month" value={mesFiltro} onChange={e => { setMesFiltro(e.target.value); setModo('mes'); }} className="px-1.5 py-0.5 text-xs border border-gray-300 rounded"/>
           </div>
         </div>
 
