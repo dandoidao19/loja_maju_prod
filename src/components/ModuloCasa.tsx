@@ -620,14 +620,15 @@ export default function ModuloCasa() {
 
   // ✅ OTIMIZADO: Usar lançamentos do contexto diretamente
   const lancamentosFiltrados = useMemo(() => {
-    if (carregandoInicial || dados.todosLancamentosCasa.length === 0) {
+    const lancamentos = dados.todosLancamentosCasa || []; // Correção aqui
+    if (carregandoInicial || lancamentos.length === 0) {
       console.log('⏳ Aguardando carregamento inicial...')
       return []
     }
 
-    console.log('🔍 Aplicando filtros... Total lançamentos:', dados.todosLancamentosCasa.length)
+    console.log('🔍 Aplicando filtros... Total lançamentos:', lancamentos.length)
 
-    let resultado = [...dados.todosLancamentosCasa]
+    let resultado = [...lancamentos]
 
     // Ordenar por data crescente (do mais antigo para o mais novo)
     resultado.sort((a, b) => {

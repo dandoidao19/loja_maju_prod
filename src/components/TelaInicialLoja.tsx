@@ -240,7 +240,8 @@ export default function TelaInicialLoja() {
 
   // ✅ CORREÇÃO: Aplicar filtros corretamente
   const aplicarFiltros = useCallback(() => {
-    let resultado = [...transacoes]
+    const transacoesAtuais = transacoes || [];
+    let resultado = [...transacoesAtuais]
 
     // ✅ Primeiro: Verificar se há filtros ativos
     const temFiltros =

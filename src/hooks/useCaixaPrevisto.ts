@@ -105,5 +105,6 @@ export const useCaixaPrevisto = (filtros: CaixaPrevistoFiltros) => {
     queryFn: () => fetchCaixaPrevisto(filtros),
     enabled: !!filtros.contexto && !!filtros.dataInicio && !!filtros.dataFim,
     staleTime: 1000 * 60 * 5,
+    initialData: [], // Garante que 'data' seja sempre um array
   });
 };
