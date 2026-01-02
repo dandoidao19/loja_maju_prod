@@ -108,9 +108,7 @@ export default function Dashboard() {
 
             <main>
               {activeSection === 'dashboard' && (
-                // Alterado para um layout que permite ao CaixaUnificado se expandir
-                // e se comportar como os outros módulos principais.
-                <div>
+                <div className="max-w-xl mx-auto">
                   <CaixaUnificado />
                 </div>
               )}

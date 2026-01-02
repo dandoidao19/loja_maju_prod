@@ -2,7 +2,7 @@
 // src/hooks/useCaixaPrevisto.ts
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { formatarDataParaExibicao, getDataAtualBrasil } from '@/lib/dateUtils';
+import { formatarDataParaExibicao } from '@/lib/dateUtils';
 
 interface DiaCaixa {
   data: string;
@@ -18,17 +18,19 @@ interface CaixaPrevistoFiltros {
   dataFim: string;
 }
 
-// Funções auxiliares movidas para cá
 const normalizeDate = (d?: string) => {
   if (!d) return '';
+  // Handles 'YYYY-MM-DDTHH:mm:ss.sssZ' format
   if (d.includes('T')) return d.split('T')[0];
+  // Basic handling for 'YYYY-MM-DD'
   return new Date(d).toISOString().slice(0, 10);
 };
 
 const gerarIntervaloDatas = (inicio: string, fim: string) => {
   const lista: string[] = [];
-  let atual = new Date(inicio + 'T12:00:00Z');
-  const fimDate = new Date(fim + 'T12:00:00Z');
+  // Use UTC to avoid timezone shifts
+  let atual = new Date(inicio + 'T00:00:00Z');
+  const fimDate = new Date(fim + 'T00:00:00Z');
   while (atual <= fimDate) {
     lista.push(atual.toISOString().slice(0, 10));
     atual.setDate(atual.getDate() + 1);
@@ -37,14 +39,14 @@ const gerarIntervaloDatas = (inicio: string, fim: string) => {
 };
 
 const fetchCaixaPrevisto = async ({ contexto, dataInicio, dataFim }: CaixaPrevistoFiltros): Promise<DiaCaixa[]> => {
-  let allEntries: Array<any> = [];
+  let allEntries: Array<{ id: string; data: string; tipo: 'entrada' | 'saida'; valor: number }> = [];
 
   if (contexto === 'casa') {
     const { data, error } = await supabase
       .from('lancamentos_financeiros')
       .select('id, valor, tipo, data_lancamento, data_prevista')
       .eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b')
-      .order('data_lancamento', { ascending: true });
+      .order('data_lancamento', { ascending: true }); // Order by a single column for consistency
     if (error) throw error;
 
     data?.forEach((r: any) => {
@@ -67,10 +69,13 @@ const fetchCaixaPrevisto = async ({ contexto, dataInicio, dataFim }: CaixaPrevis
 
   if (allEntries.length === 0) return [];
 
-  const datas = allEntries.map(e => e.data);
+  const datas = allEntries.map(e => e.data).filter(Boolean);
+  if (datas.length === 0) return [];
+
   const minDate = datas.reduce((a, b) => (a < b ? a : b));
-  const maxDate = datas.reduce((a, b) => (a > b ? a : b));
-  const finalMaxDate = dataFim > maxDate ? dataFim : maxDate;
+
+  // O período de cálculo deve ir do início absoluto até o fim do período solicitado
+  const periodoCalculoFim = dataFim;
 
   const agrup: Record<string, { receitas: number; despesas: number }> = {};
   allEntries.forEach(r => {
@@ -79,23 +84,24 @@ const fetchCaixaPrevisto = async ({ contexto, dataInicio, dataFim }: CaixaPrevis
     else agrup[r.data].despesas += r.valor;
   });
 
-  const listaDatas = gerarIntervaloDatas(minDate, finalMaxDate);
-  const series: DiaCaixa[] = [];
-  let saldoAtual = 0;
+  const listaDatasCompleta = gerarIntervaloDatas(minDate, periodoCalculoFim);
+  const seriesCompletas: DiaCaixa[] = [];
+  let saldoAcumulado = 0;
 
-  listaDatas.forEach(data => {
+  listaDatasCompleta.forEach(data => {
     const valores = agrup[data] || { receitas: 0, despesas: 0 };
-    saldoAtual += (valores.receitas - valores.despesas);
-    series.push({
+    saldoAcumulado += (valores.receitas - valores.despesas);
+    seriesCompletas.push({
       data,
       data_formatada: formatarDataParaExibicao(data),
       receitas: valores.receitas,
       despesas: valores.despesas,
-      saldo_acumulado: saldoAtual,
+      saldo_acumulado: saldoAcumulado,
     });
   });
 
-  return series.filter(s => s.data >= dataInicio && s.data <= dataFim);
+  // Finalmente, filtre a série completa para retornar apenas o período desejado
+  return seriesCompletas.filter(s => s.data >= dataInicio && s.data <= dataFim);
 };
 
 
@@ -104,5 +110,6 @@ export const useCaixaPrevisto = (filtros: CaixaPrevistoFiltros) => {
     queryKey: ['caixaPrevisto', filtros.contexto, filtros.dataInicio, filtros.dataFim],
     queryFn: () => fetchCaixaPrevisto(filtros),
     enabled: !!filtros.contexto && !!filtros.dataInicio && !!filtros.dataFim,
+    staleTime: 1000 * 60 * 5, // Cache de 5 minutos
   });
 };

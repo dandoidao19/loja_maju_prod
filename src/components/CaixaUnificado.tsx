@@ -12,7 +12,7 @@ const calcularDataNDias = (dataBase: string, dias: number) => {
 };
 
 export default function CaixaUnificado() {
-  const [modo, setModo] = useState('30dias');
+  const [modo, setModo] = useState<'30dias' | 'mes' | 'tudo'>('30dias');
   const [mesFiltro, setMesFiltro] = useState(() => {
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -27,6 +27,11 @@ export default function CaixaUnificado() {
       const dataFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`;
       return { dataInicio, dataFim };
     }
+    if (modo === 'tudo') {
+        const dataInicio = hoje;
+        const dataFim = calcularDataNDias(hoje, 365); // Próximo ano
+        return { dataInicio, dataFim };
+    }
     // modo '30dias' ou padrão
     const dataInicio = hoje;
     const dataFim = calcularDataNDias(hoje, 30);
@@ -38,11 +43,26 @@ export default function CaixaUnificado() {
   const formatarMoeda = (valor: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
   const formatarMoedaCompacta = (valor: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(valor);
 
+  const handleToggleTudo = () => {
+    setModo(current => (current === 'tudo' ? '30dias' : 'tudo'));
+    setMesFiltro(''); // Limpa o filtro de mês
+  };
+
+  const handleMesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setMesFiltro(e.target.value);
+      setModo('mes');
+  }
+
+  const getTituloPrevisao = () => {
+      if (modo === 'mes') return `Mês: ${mesFiltro.split('-')[1]}/${mesFiltro.split('-')[0]}`;
+      if (modo === 'tudo') return 'Visão Geral';
+      return 'Próximos 30 Dias';
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md p-1 space-y-1">
       <h2 className="font-semibold text-gray-800" style={{ fontSize: '12px' }}>Caixa Universal</h2>
 
-      {/* CAIXA REAL */}
       <div className="rounded p-1.5 bg-blue-50 border border-blue-200">
         <div>
           <p className="mb-0.5 text-gray-600" style={{ fontSize: '12px' }}>Caixa Real:</p>
@@ -54,19 +74,16 @@ export default function CaixaUnificado() {
         </div>
       </div>
 
-      {/* FILTROS E CAIXA PREVISTO */}
       <div className="space-y-1">
         <div className="flex justify-between items-center mb-1">
-            <span className="font-semibold text-gray-700" style={{ fontSize: '12px' }}>
-                {modo === '30dias' ? '30 Dias' : `Mês: ${mesFiltro.split('-')[1]}/${mesFiltro.split('-')[0]}`}
-            </span>
+            <span className="font-semibold text-gray-700" style={{ fontSize: '12px' }}>{getTituloPrevisao()}</span>
             <div className="flex gap-0.5">
-                <input type="month" value={mesFiltro} onChange={e => setMesFiltro(e.target.value)} className="px-1.5 py-0.5 text-xs border border-gray-300 rounded"/>
+                <input type="month" value={mesFiltro} onChange={handleMesChange} className="px-1.5 py-0.5 text-xs border border-gray-300 rounded"/>
                 <button onClick={() => setModo('mes')} className="px-1.5 py-0.5 bg-blue-500 text-white hover:bg-blue-600 rounded text-xs font-medium">Ver Mês</button>
+                <button onClick={handleToggleTudo} className="px-1.5 py-0.5 bg-green-500 text-white hover:bg-green-600 rounded text-xs font-medium">
+                    {modo === 'tudo' ? '30 Dias' : 'Ver Tudo'}
+                </button>
             </div>
-        </div>
-        <div className="text-[10px] text-gray-500">
-            Mostrando {modo === '30dias' ? '30 dias' : 'mês selecionado'}
         </div>
 
         {isLoading ? (

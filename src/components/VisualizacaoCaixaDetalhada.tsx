@@ -31,6 +31,11 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
       return { contexto, dataInicio, dataFim };
     }
     // modo '30dias' ou padrão
+    if (contexto === 'casa') {
+        const dataInicio = hoje;
+        const dataFim = calcularDataNDias(hoje, 10);
+        return { contexto, dataInicio, dataFim };
+    }
     const dataInicio = hoje;
     const dataFim = calcularDataNDias(hoje, 30);
     return { contexto, dataInicio, dataFim };
@@ -47,7 +52,7 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
 
   const getTituloPrevisao = () => {
     if (modo === 'mes') return `Mês: ${mesFiltro.split('-')[1]}/${mesFiltro.split('-')[0]}`;
-    return `Próximos 30 Dias`;
+    return contexto === 'casa' ? `Próximos 10 Dias` : `Próximos 30 Dias`;
   };
 
   return (
@@ -78,7 +83,9 @@ export default function VisualizacaoCaixaDetalhada({ contexto, titulo }: { conte
             ) : (
                 <>
                     <input type="month" value={mesFiltro} onChange={e => setMesFiltro(e.target.value)} className="px-1.5 py-0.5 text-xs border border-gray-300 rounded"/>
-                    <button onClick={() => setModo('30dias')} className="px-1.5 py-0.5 bg-gray-500 text-white hover:bg-gray-600 rounded text-xs font-medium">30 Dias</button>
+                    <button onClick={() => setModo('30dias')} className="px-1.5 py-0.5 bg-gray-500 text-white hover:bg-gray-600 rounded text-xs font-medium">
+                        {contexto === 'casa' ? '10 Dias' : '30 Dias'}
+                    </button>
                 </>
             )}
           </div>
