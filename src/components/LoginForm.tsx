@@ -33,7 +33,7 @@ export default function LoginForm() {
         }
       } else {
         // Login bem-sucedido
-        window.location.href = '/'
+        window.location.href = '/dashboard'
       }
     } catch (error) {
       alert('Erro inesperado: ' + error)
