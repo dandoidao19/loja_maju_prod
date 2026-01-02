@@ -1,170 +1,103 @@
 
-// src/components/CaixaUnificado.tsx
-'use client';
+'use client'
 
 import { useState, useMemo } from 'react';
-import { useCaixaUnificado } from '@/hooks/useCaixaUnificado';
+import { useCaixaUniversal } from '@/hooks/useCaixaUniversal';
 import { getDataAtualBrasil } from '@/lib/dateUtils';
 
-// Função para formatar a data como DD/MM/AAAA
-const formatarData = (data: string) => {
-  const [ano, mes, dia] = data.split('-');
-  return `${dia}/${mes}/${ano}`;
-};
-
-// Função para formatar valores monetários
-const formatarValor = (valor: number) => {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
-
-const gerarMeses = () => {
-    const meses = [];
-    const hoje = new Date();
-    // Gera 12 meses passados
-    for (let i = 11; i >= 0; i--) {
-      const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-      const ano = data.getFullYear();
-      const mes = String(data.getMonth() + 1).padStart(2, '0');
-      const valor = `${ano}-${mes}`;
-      const nomeMes = data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-      meses.push({ valor, nome: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1) });
-    }
-    // Gera 12 meses futuros
-    for (let i = 1; i <= 12; i++) {
-        const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
-        const ano = data.getFullYear();
-        const mes = String(data.getMonth() + 1).padStart(2, '0');
-        const valor = `${ano}-${mes}`;
-        const nomeMes = data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-        meses.push({ valor, nome: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1) });
-      }
-    return meses;
+const calcularDataNDias = (dataBase: string, dias: number) => {
+    const data = new Date(`${dataBase}T12:00:00Z`);
+    data.setDate(data.getDate() + dias);
+    return data.toISOString().split('T')[0];
 };
 
 export default function CaixaUnificado() {
-  const { data: saldos, isLoading, isError, error } = useCaixaUnificado();
-  const [verTodas, setVerTodas] = useState(false);
-  const [filtroMes, setFiltroMes] = useState('');
+  const [modo, setModo] = useState('30dias');
+  const [mesFiltro, setMesFiltro] = useState(() => {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  });
 
-  // Memoizar a geração da lista de meses para performance
-  const meses = useMemo(() => gerarMeses(), []);
-
-  // Lógica de filtragem corrigida e centralizada
-  const dadosExibidos = useMemo(() => {
-    if (isLoading || isError || !saldos) return [];
-
-    const hojeStr = getDataAtualBrasil();
-
-    // 1. Filtro por Mês (tem prioridade)
-    if (filtroMes) {
-      return saldos.filter(saldo => saldo.data.startsWith(filtroMes));
+  const filtros = useMemo(() => {
+    const hoje = getDataAtualBrasil();
+    if (modo === 'mes') {
+      const [ano, mes] = mesFiltro.split('-');
+      const dataInicio = `${ano}-${mes}-01`;
+      const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate();
+      const dataFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`;
+      return { dataInicio, dataFim };
     }
+    // modo '30dias' ou padrão
+    const dataInicio = hoje;
+    const dataFim = calcularDataNDias(hoje, 30);
+    return { dataInicio, dataFim };
+  }, [modo, mesFiltro]);
 
-    // 2. Filtro "Ver Todas" (mostra tudo a partir de hoje)
-    if (verTodas) {
-      return saldos.filter(saldo => saldo.data >= hojeStr);
-    }
+  const { caixaRealUniversal, entradasHojeUniversal, saidasHojeUniversal, caixaPrevisto, isLoading } = useCaixaUniversal(filtros);
 
-    // 3. Filtro Padrão: "Próximos 30 dias"
-    const dataBase = new Date(`${hojeStr}T12:00:00`);
-    dataBase.setDate(dataBase.getDate() + 30);
-    const dataFimStr = dataBase.toISOString().split('T')[0];
-
-    return saldos.filter(saldo => saldo.data >= hojeStr && saldo.data <= dataFimStr);
-  }, [saldos, verTodas, filtroMes, isLoading, isError]);
-
-  const handleMesChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const mes = e.target.value;
-    setFiltroMes(mes);
-    if (mes) {
-      setVerTodas(false); // Desativa "Ver Todas" se um mês for selecionado
-    }
-  };
-
-  const handleVerTodasClick = () => {
-    setVerTodas(prev => !prev);
-    setFiltroMes(''); // Limpa o filtro de mês ao alternar
-  };
-
-  const getTitulo = () => {
-    if (filtroMes) {
-      const mesSelecionado = meses.find(m => m.valor === filtroMes);
-      return `Resumo do Mês: ${mesSelecionado?.nome || filtroMes}`;
-    }
-    if (verTodas) {
-      return 'Resumo de Todas as Transações Futuras';
-    }
-    return 'Resumo dos Próximos 30 Dias';
-  }
+  const formatarMoeda = (valor: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+  const formatarMoedaCompacta = (valor: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(valor);
 
   return (
-    <div className="bg-white rounded-lg shadow-xl w-full p-4 border border-gray-100">
-      <div className="flex flex-wrap justify-between items-center mb-4 pb-2 border-b">
-        <h2 className="text-lg font-bold text-gray-800 mb-2 sm:mb-0">{getTitulo()}</h2>
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={filtroMes}
-            onChange={handleMesChange}
-            className="px-3 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="">Filtrar por mês...</option>
-            {meses.map(m => (
-              <option key={m.valor} value={m.valor}>{m.nome}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleVerTodasClick}
-            className={`px-3 py-1 text-xs font-semibold text-white rounded-md transition-colors ${
-              verTodas ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
-            }`}
-          >
-            {verTodas ? 'Ver Próximos 30 Dias' : 'Ver Tudo'}
-          </button>
+    <div className="bg-white rounded-lg shadow-md p-1 space-y-1">
+      <h2 className="font-semibold text-gray-800" style={{ fontSize: '12px' }}>Caixa Universal</h2>
+
+      {/* CAIXA REAL */}
+      <div className="rounded p-1.5 bg-blue-50 border border-blue-200">
+        <div>
+          <p className="mb-0.5 text-gray-600" style={{ fontSize: '12px' }}>Caixa Real:</p>
+          <p className="text-2xl font-bold text-blue-600">{formatarMoeda(caixaRealUniversal || 0)}</p>
+          <div className="mt-0.5 flex justify-between text-[11px] font-medium">
+            <span className="text-green-600">↑ {formatarMoedaCompacta(entradasHojeUniversal || 0)}</span>
+            <span className="text-red-600">↓ {formatarMoedaCompacta(saidasHojeUniversal || 0)}</span>
+          </div>
         </div>
       </div>
 
-      {isLoading && (
-        <div className="text-center py-8 text-gray-500">Carregando dados...</div>
-      )}
-
-      {isError && (
-        <div className="text-center py-8 text-red-500">
-          Ocorreu um erro ao carregar os dados. Detalhes: {error?.message}
+      {/* FILTROS E CAIXA PREVISTO */}
+      <div className="space-y-1">
+        <div className="flex justify-between items-center mb-1">
+            <span className="font-semibold text-gray-700" style={{ fontSize: '12px' }}>
+                {modo === '30dias' ? '30 Dias' : `Mês: ${mesFiltro.split('-')[1]}/${mesFiltro.split('-')[0]}`}
+            </span>
+            <div className="flex gap-0.5">
+                <input type="month" value={mesFiltro} onChange={e => setMesFiltro(e.target.value)} className="px-1.5 py-0.5 text-xs border border-gray-300 rounded"/>
+                <button onClick={() => setModo('mes')} className="px-1.5 py-0.5 bg-blue-500 text-white hover:bg-blue-600 rounded text-xs font-medium">Ver Mês</button>
+            </div>
         </div>
-      )}
+        <div className="text-[10px] text-gray-500">
+            Mostrando {modo === '30dias' ? '30 dias' : 'mês selecionado'}
+        </div>
 
-      {!isLoading && !isError && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto text-sm">
-            <thead className="bg-gray-50">
-              <tr className="text-left text-gray-600 uppercase">
-                <th className="px-4 py-3 font-semibold">Data</th>
-                <th className="px-4 py-3 font-semibold text-right">Receitas</th>
-                <th className="px-4 py-3 font-semibold text-right">Despesas</th>
-                <th className="px-4 py-3 font-semibold text-right">Saldo Acumulado</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {dadosExibidos.length > 0 ? (
-                dadosExibidos.map((saldo) => (
-                  <tr key={saldo.data} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-800">{formatarData(saldo.data)}</td>
-                    <td className="px-4 py-3 text-right text-green-600 font-semibold">{formatarValor(saldo.entradas)}</td>
-                    <td className="px-4 py-3 text-right text-red-600 font-semibold">{formatarValor(saldo.saidas)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatarValor(saldo.saldoAcumulado)}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="text-center py-8 text-gray-500">
-                    Nenhuma transação encontrada para o período selecionado.
-                  </td>
+        {isLoading ? (
+          <p className="text-gray-500 text-center py-2" style={{ fontSize: '12px' }}>Carregando...</p>
+        ) : caixaPrevisto && caixaPrevisto.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-100 border-b border-gray-300">
+                  <th className="px-1 py-0.5 text-left font-semibold text-gray-700">Data</th>
+                  <th className="px-1 py-0.5 text-right font-semibold text-gray-700">Receitas</th>
+                  <th className="px-1 py-0.5 text-right font-semibold text-gray-700">Despesas</th>
+                  <th className="px-1 py-0.5 text-right font-semibold text-gray-700">Acumulado</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {caixaPrevisto.map((dia) => (
+                  <tr key={dia.data} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-1 py-0.5 text-gray-700 whitespace-nowrap">{dia.data_formatada}</td>
+                    <td className="px-1 py-0.5 text-right text-green-600 font-medium">{formatarMoedaCompacta(dia.receitas)}</td>
+                    <td className="px-1 py-0.5 text-right text-red-600 font-medium">{formatarMoedaCompacta(dia.despesas)}</td>
+                    <td className={`px-1 py-0.5 text-right font-bold ${dia.saldo_acumulado >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{formatarMoedaCompacta(dia.saldo_acumulado)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-3"><p className="text-gray-500 text-xs">Nenhuma transação no período.</p></div>
+        )}
+      </div>
     </div>
   );
 }

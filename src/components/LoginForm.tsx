@@ -33,7 +33,7 @@ export default function LoginForm() {
         }
       } else {
         // Login bem-sucedido
-        window.location.href = '/dashboard'
+        window.location.href = '/'
       }
     } catch (error) {
       alert('Erro inesperado: ' + error)
@@ -65,9 +65,9 @@ export default function LoginForm() {
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+          <label htmlFor="email-input" className="block text-sm font-medium text-gray-700">Email</label>
           <input
-            id="email"
+            id="email-input"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -76,9 +76,9 @@ export default function LoginForm() {
           />
         </div>
         <div>
-          <label htmlFor="senha" className="block text-sm font-medium text-gray-700">Senha</label>
+          <label htmlFor="password-input" className="block text-sm font-medium text-gray-700">Senha</label>
           <input
-            id="senha"
+            id="password-input"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

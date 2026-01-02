@@ -1,148 +1,126 @@
 
-// src/components/OrcamentoMetasLoja.tsx
-'use client';
+'use client'
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { getMesAtualParaInput } from '@/lib/dateUtils';
+import { useState, useEffect } from 'react';
+import { useOrcamento } from '@/hooks/useOrcamento';
+import { useMetas } from '@/hooks/useMetas';
 
 export default function OrcamentoMetasLoja() {
-  const [mesAno, setMesAno] = useState(getMesAtualParaInput());
-  const [valorMaximoEstoque, setValorMaximoEstoque] = useState<number | ''>('');
-  const [metaLucroMes, setMetaLucroMes] = useState<number | ''>('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: orcamentoData, isLoading: isLoadingOrcamento, update: updateOrcamento, isUpdating: isUpdatingOrcamento } = useOrcamento('loja');
+  const { data: metasData, isLoading: isLoadingMetas, update: updateMetas, isUpdating: isUpdatingMetas } = useMetas('loja');
 
-  const fetchOrcamentoLoja = useCallback(async () => {
-    setIsLoading(true);
-    const [ano, mes] = mesAno.split('-').map(Number);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-        setIsLoading(false);
-        return;
-    }
-
-    const { data, error } = await supabase
-      .from('orcamento_loja')
-      .select('valor_maximo_estoque, meta_lucro_mes')
-      .eq('user_id', user.id)
-      .eq('ano', ano)
-      .eq('mes', mes)
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('Erro ao buscar orçamento da loja:', error);
-      alert('Erro ao carregar os dados de orçamento da loja.');
-    } else {
-      setValorMaximoEstoque(data?.valor_maximo_estoque || '');
-      setMetaLucroMes(data?.meta_lucro_mes || '');
-    }
-    setIsLoading(false);
-  }, [mesAno]);
+  const [orcamentos, setOrcamentos] = useState<any[]>([]);
+  const [metas, setMetas] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchOrcamentoLoja();
-  }, [fetchOrcamentoLoja]);
+    if (orcamentoData) setOrcamentos(orcamentoData);
+  }, [orcamentoData]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    const [ano, mes] = mesAno.split('-').map(Number);
-    const { data: { user } } = await supabase.auth.getUser();
+  useEffect(() => {
+    if (metasData) setMetas(metasData);
+  }, [metasData]);
 
-    if (!user) {
-      alert('Usuário não autenticado.');
-      setIsSaving(false);
-      return;
-    }
 
-    const upsertData = {
-      user_id: user.id,
-      ano,
-      mes,
-      valor_maximo_estoque: valorMaximoEstoque || null,
-      meta_lucro_mes: metaLucroMes || null,
-    };
-
-    const { error } = await supabase.from('orcamento_loja').upsert(upsertData, {
-      onConflict: 'user_id,ano,mes',
-    });
-
-    if (error) {
-      console.error('Erro ao salvar orçamento da loja:', error);
-      alert('Ocorreu um erro ao salvar os dados.');
-    } else {
-      alert('Orçamento e metas da loja salvos com sucesso!');
-    }
-    setIsSaving(false);
+  const handleOrcamentoChange = (index: number, campo: string, valor: any) => {
+    const novosOrcamentos = [...orcamentos];
+    novosOrcamentos[index] = { ...novosOrcamentos[index], [campo]: valor };
+    setOrcamentos(novosOrcamentos);
   };
 
+  const handleMetaChange = (index: number, campo: string, valor: any) => {
+    const novasMetas = [...metas];
+    novasMetas[index] = { ...novasMetas[index], [campo]: valor };
+    setMetas(novasMetas);
+  };
+
+  const handleSalvarOrcamento = () => {
+    const updates = orcamentos.map(o => ({
+        id: o.id,
+        categoria: o.categoria,
+        valor_orcado: o.valor_orcado,
+        contexto: 'loja'
+    }));
+    updateOrcamento(updates);
+  };
+
+  const handleSalvarMetas = () => {
+    const updates = metas.map(m => ({
+        id: m.id,
+        descricao: m.descricao,
+        valor_meta: m.valor_meta,
+        contexto: 'loja'
+    }));
+    updateMetas(updates);
+  };
+
+  const isLoading = isLoadingOrcamento || isLoadingMetas;
+  const isUpdating = isUpdatingOrcamento || isUpdatingMetas;
+
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md space-y-6">
-      <div className="flex items-center gap-4">
-        <label htmlFor="mesAnoLoja" className="font-semibold text-sm">Mês e Ano:</label>
-        <input
-          type="month"
-          id="mesAnoLoja"
-          value={mesAno}
-          onChange={(e) => setMesAno(e.target.value)}
-          className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+    <div className="space-y-6">
+      {/* Seção de Orçamento */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h2 className="text-xl font-bold mb-4">Orçamento Mensal - Loja</h2>
+        {isLoading ? (
+            <p>Carregando orçamento...</p>
+        ) : (
+            <div className="space-y-2">
+            {orcamentos.map((item, index) => (
+                <div key={item.id} className="grid grid-cols-2 gap-4 items-center">
+                <input
+                    type="text"
+                    value={item.categoria}
+                    onChange={(e) => handleOrcamentoChange(index, 'categoria', e.target.value)}
+                    className="p-2 border rounded"
+                    placeholder="Nome da Categoria"
+                />
+                <input
+                    type="number"
+                    value={item.valor_orcado}
+                    onChange={(e) => handleOrcamentoChange(index, 'valor_orcado', parseFloat(e.target.value))}
+                    className="p-2 border rounded"
+                    placeholder="Valor Orçado"
+                />
+                </div>
+            ))}
+            </div>
+        )}
+        <button onClick={handleSalvarOrcamento} disabled={isUpdating} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300">
+          {isUpdating ? 'Salvando...' : 'Salvar Orçamento'}
+        </button>
       </div>
 
-      {isLoading && <p className="text-center">Carregando...</p>}
-
-      {!isLoading && (
-        <>
-          <div className="space-y-4">
-            {/* Orçamento Estoque */}
-            <div>
-              <h3 className="font-bold text-lg text-gray-700 mb-2">Orçamento Estoque</h3>
-              <div className="flex items-center gap-2 max-w-sm">
-                <label htmlFor="valorMaximoEstoque" className="w-1/2 text-sm">
-                  Valor Máximo em Estoque:
-                </label>
+      {/* Seção de Metas */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h2 className="text-xl font-bold mb-4">Metas Financeiras - Loja</h2>
+        {isLoading ? (
+            <p>Carregando metas...</p>
+        ) : (
+            <div className="space-y-2">
+            {metas.map((item, index) => (
+                <div key={item.id} className="grid grid-cols-2 gap-4 items-center">
                 <input
-                  type="number"
-                  id="valorMaximoEstoque"
-                  value={valorMaximoEstoque}
-                  onChange={(e) => setValorMaximoEstoque(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="R$ 0,00"
-                  className="w-1/2 px-2 py-1 text-sm border border-gray-300 rounded-md"
+                    type="text"
+                    value={item.descricao}
+                    onChange={(e) => handleMetaChange(index, 'descricao', e.target.value)}
+                    className="p-2 border rounded"
+                    placeholder="Descrição da Meta"
                 />
-              </div>
-            </div>
-
-            {/* Metas */}
-            <div>
-              <h3 className="font-bold text-lg text-gray-700 mb-2">Metas</h3>
-              <div className="flex items-center gap-2 max-w-sm">
-                <label htmlFor="metaLucroMes" className="w-1/2 text-sm">
-                  Meta de Lucro Mês:
-                </label>
                 <input
-                  type="number"
-                  id="metaLucroMes"
-                  value={metaLucroMes}
-                  onChange={(e) => setMetaLucroMes(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="R$ 0,00"
-                  className="w-1/2 px-2 py-1 text-sm border border-gray-300 rounded-md"
+                    type="number"
+                    value={item.valor_meta}
+                    onChange={(e) => handleMetaChange(index, 'valor_meta', parseFloat(e.target.value))}
+                    className="p-2 border rounded"
+                    placeholder="Valor da Meta"
                 />
-              </div>
+                </div>
+            ))}
             </div>
-          </div>
-
-          <div className="flex justify-end pt-4">
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
-            >
-              {isSaving ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-        </>
-      )}
+        )}
+        <button onClick={handleSalvarMetas} disabled={isUpdating} className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-green-300">
+          {isUpdating ? 'Salvando...' : 'Salvar Metas'}
+        </button>
+      </div>
     </div>
   );
 }

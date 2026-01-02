@@ -207,14 +207,23 @@ export default function TelaInicialLoja() {
     }
   }, [buscarTransacoes])
 
-  // Função para obter a data daqui a N dias no formato AAAA-MM-DD, baseada na data do Brasil
-  const obterDataFutura = (dias: number): string => {
-    const hojeStr = getDataAtualBrasil();
-    // Usar T12:00:00 para evitar problemas de fuso horário e horário de verão ao manipular a data
-    const dataBase = new Date(`${hojeStr}T12:00:00`);
-    dataBase.setDate(dataBase.getDate() + dias);
-    return dataBase.toISOString().split('T')[0];
-  }
+  // ✅ CORREÇÃO: Função para verificar se está no mês atual
+  const estaNoMesAtual = useCallback((dataString: string) => {
+    try {
+      if (!dataString) return false
+
+      const data = new Date(dataString + 'T12:00:00')
+      const hoje = new Date()
+
+      if (isNaN(data.getTime())) return false
+
+      return data.getFullYear() === hoje.getFullYear() &&
+             data.getMonth() === hoje.getMonth()
+    } catch (error) {
+      console.error('❌ Erro ao verificar mês:', error)
+      return false
+    }
+  }, [])
 
   const estaNoPeriodo = useCallback((dataString: string, inicio: string, fim: string) => {
     try {
@@ -243,15 +252,12 @@ export default function TelaInicialLoja() {
       filtroTipo !== 'todos' ||
       filtroStatus !== 'todos'
 
-    // Se não houver filtros ativos e "Ver Todas" não estiver selecionado, aplica o filtro padrão de próximos 30 dias
+    // ✅ Se não tem filtros e não está em "Ver Todas", aplicar filtro do MÊS ATUAL
     if (!temFiltros && !verTodas) {
-      const hoje = getDataAtualBrasil();
-      const dataFim = obterDataFutura(30);
-      console.log(`🎯 Aplicando filtro padrão: Próximos 30 dias (${hoje} a ${dataFim})`);
+      console.log('🎯 Aplicando filtro padrão: Mês Atual')
       resultado = resultado.filter(transacao => {
-        // Apenas transações pendentes devem ser incluídas no filtro padrão de 30 dias
-        return transacao.status_pagamento === 'pendente' && estaNoPeriodo(transacao.data, hoje, dataFim);
-      });
+        return estaNoMesAtual(transacao.data)
+      })
     }
 
     // Aplicar outros filtros
@@ -301,7 +307,7 @@ export default function TelaInicialLoja() {
 
     console.log(`✅ Filtros aplicados: ${resultado.length} transações`)
     setTransacoesFiltradas(resultado)
-  }, [transacoes, filtroDataInicio, filtroDataFim, filtroMes, filtroNumeroTransacao, filtroDescricao, filtroTipo, filtroStatus, verTodas, estaNoPeriodo])
+  }, [transacoes, filtroDataInicio, filtroDataFim, filtroMes, filtroNumeroTransacao, filtroDescricao, filtroTipo, filtroStatus, verTodas, estaNoMesAtual, estaNoPeriodo])
 
   useEffect(() => {
     aplicarFiltros()
@@ -437,7 +443,10 @@ export default function TelaInicialLoja() {
     } else if (temFiltros) {
       return 'Parcelas Filtradas'
     } else {
-      return 'Próximos 30 Dias'
+      const hoje = new Date()
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0')
+      const ano = hoje.getFullYear()
+      return `Parcelas do Mês ${mes}/${ano}`
     }
   }, [verTodas, filtroNumeroTransacao, filtroDescricao, filtroTipo, filtroStatus, filtroDataInicio, filtroDataFim, filtroMes])
 
@@ -480,6 +489,8 @@ export default function TelaInicialLoja() {
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold text-gray-800 text-sm">
                 {tituloLista}
+                {transacoesFiltradas.length !== transacoes.length &&
+                  ` (${transacoesFiltradas.length} de ${transacoes.length} filtradas)`}
               </h3>
               <button
                 onClick={() => setVerTodas(!verTodas)}
@@ -489,7 +500,7 @@ export default function TelaInicialLoja() {
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
-                {verTodas ? 'Próximos 30 Dias' : 'Ver Todas'}
+                {verTodas ? 'Mês Atual' : 'Ver Todas'}
               </button>
             </div>
 
@@ -499,15 +510,15 @@ export default function TelaInicialLoja() {
               </div>
             ) : transacoesFiltradas.length === 0 ? (
               <div className="text-center py-4 text-gray-500 text-xs">
-                {verTodas ? 'Nenhuma transação encontrada' : 'Nenhuma parcela encontrada para os próximos 30 dias'}
+                {verTodas ? 'Nenhuma transação encontrada' : 'Nenhuma parcela encontrada para o mês atual'}
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-gray-100 border-b border-gray-300">
-                      <th className="px-1 py-0.5 text-left font-semibold text-gray-700 whitespace-nowrap" style={{ fontSize: '12px' }}>Vencimento</th>
-                      <th className="px-1 py-0.5 text-left font-semibold text-gray-700 whitespace-nowrap" style={{ fontSize: '12px' }}>Pagamento</th>
+                      <th className="px-1 py-0.5 text-left font-semibold text-gray-700" style={{ fontSize: '10px' }}>Vencimento</th>
+                      <th className="px-1 py-0.5 text-left font-semibold text-gray-700" style={{ fontSize: '10px' }}>Pagamento</th>
                       <th className="px-1 py-0.5 text-left font-semibold text-gray-700" style={{ fontSize: '10px' }}>Transação</th>
                       <th className="px-1 py-0.5 text-left font-semibold text-gray-700" style={{ fontSize: '10px' }}>Cliente/Fornecedor</th>
                       <th className="px-1 py-0.5 text-right font-semibold text-gray-700" style={{ fontSize: '10px' }}>Valor Parcela</th>
@@ -527,10 +538,10 @@ export default function TelaInicialLoja() {
 
                       return (
                         <tr key={`${transacao.id}-${index}`} className="border-b border-gray-200 hover:bg-gray-50">
-                          <td className="px-1 py-0.5 text-gray-700 whitespace-nowrap" style={{ fontSize: '12px' }}>
+                          <td className="px-1 py-0.5 text-gray-700" style={{ fontSize: '11px' }}>
                             {formatarDataParaExibicao(transacao.data)}
                           </td>
-                          <td className="px-1 py-0.5 text-gray-700 whitespace-nowrap" style={{ fontSize: '12px' }}>
+                          <td className="px-1 py-0.5 text-gray-700" style={{ fontSize: '11px' }}>
                             {transacao.data_pagamento ? (
                               <span className="text-green-600 font-medium">
                                 {formatarDataParaExibicao(transacao.data_pagamento)}
