@@ -28,7 +28,7 @@ interface FiltrosLancamentosCasaProps {
   tipo?: string
 }
 
-export default function FiltrosLancamentosCasa({
+export default function FiltroLancamentosCasa({
   filtroDataInicio,
   setFiltroDataInicio,
   filtroDataFim,

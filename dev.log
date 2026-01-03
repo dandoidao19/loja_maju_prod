@@ -1,0 +1,16 @@
+
+> loja-maju@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.2:3001
+- Environments: .env.local
+
+✓ Starting...
+⨯ Unable to acquire lock at /app/.next/dev/lock, is another instance of next dev running?
+  Suggestion: If you intended to restart next dev, terminate th GET / 200 in 69ms (compile: 5ms, render: 64ms)
+ GET /dashboard 200 in 342ms (compile: 74ms, render: 268ms)
+ GET / 200 in 61ms (compile: 5ms, render: 56ms)
+ GET /dashboard 200 in 59ms (compile: 4ms, render: 56ms)

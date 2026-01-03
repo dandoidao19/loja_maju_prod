@@ -5,8 +5,8 @@ import ModalPagarAvancado from './ModalPagarAvancado'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
 import { getDataAtualBrasil, formatarDataParaExibicao } from '@/lib/dateUtils'
-import VisualizacaoCaixaDetalhada from './VisualizacaoCaixaDetalhada'
-import FiltrosCasa from './FiltrosCasa'
+import CaixaDetalhado from './CaixaDetalhado'
+import FiltroCasa from './FiltroCasa'
 import { GeradorPDFLancamentos } from '@/lib/gerador-pdf-lancamentos'
 
 interface CentroCusto {
@@ -762,7 +762,7 @@ export default function ModuloCasa() {
     <div className="space-y-1">
       
       {/* ✅ FILTROS CASA */}
-      <FiltrosCasa
+      <FiltroCasa
         filtroDataInicio={filtroDataInicio}
         setFiltroDataInicio={setFiltroDataInicio}
         filtroDataFim={filtroDataFim}
@@ -983,7 +983,7 @@ export default function ModuloCasa() {
 
       <div className="grid grid-cols-3 gap-1">
         <div className="col-span-1">
-          <VisualizacaoCaixaDetalhada contexto="casa" titulo="CAIXA CASA" />
+          <CaixaDetalhado contexto="casa" titulo="CAIXA CASA" />
         </div>
 
         <div className="col-span-2">
