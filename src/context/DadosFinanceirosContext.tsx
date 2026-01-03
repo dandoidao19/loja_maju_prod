@@ -1,153 +1,106 @@
 
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
 import { getDataAtualBrasil } from '@/lib/dateUtils';
 
-// Interfaces
+// --- Funções de Busca de Dados ---
+const fetchLancamentos = async (contexto: 'casa' | 'loja') => {
+  if (contexto === 'casa') {
+    const { data, error } = await supabase.from('lancamentos_financeiros').select('*, centros_de_custo(nome)').eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b');
+    if (error) throw new Error(error.message);
+    return data || [];
+  } else {
+    const { data, error } = await supabase.from('transacoes_loja').select('*');
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+};
+
+const fetchCentrosCusto = async (contexto: 'casa' | 'loja') => {
+    const { data, error } = await supabase.from('centros_de_custo').select('*').eq('contexto', contexto);
+    if (error) throw new Error(error.message);
+    return data || [];
+};
+
+
+// --- Interfaces ---
 interface DadosFinanceiros {
+  todosLancamentosCasa: any[];
+  todosLancamentosLoja: any[];
+  centrosCustoCasa: any[];
+  centrosCustoLoja: any[];
   caixaRealCasa: number;
   caixaRealLoja: number;
   entradasHojeCasa: number;
   saidasHojeCasa: number;
   entradasHojeLoja: number;
   saidasHojeLoja: number;
-  ultimaAtualizacao: number;
+  isLoading: boolean;
 }
 
 interface DadosFinanceirosContextProps {
   dados: DadosFinanceiros;
-  atualizarCaixaReal: (contexto: 'casa' | 'loja') => void;
 }
 
-// Context
+// --- Context ---
 const DadosFinanceirosContext = createContext<DadosFinanceirosContextProps | undefined>(undefined);
 
-// Provider
+// --- Provider ---
 export function DadosFinanceirosProvider({ children }: { children: ReactNode }) {
-  const [dados, setDados] = useState<DadosFinanceiros>({
-    caixaRealCasa: 0,
-    caixaRealLoja: 0,
-    entradasHojeCasa: 0,
-    saidasHojeCasa: 0,
-    entradasHojeLoja: 0,
-    saidasHojeLoja: 0,
-    ultimaAtualizacao: 0,
+  const hoje = getDataAtualBrasil();
+
+  // Queries para buscar os dados
+  const { data: lancamentosCasa = [], isLoading: loadingCasa } = useQuery({
+      queryKey: ['lancamentosCasa'],
+      queryFn: () => fetchLancamentos('casa')
   });
-  const [loading, setLoading] = useState(true);
+  const { data: lancamentosLoja = [], isLoading: loadingLoja } = useQuery({
+      queryKey: ['lancamentosLoja'],
+      queryFn: () => fetchLancamentos('loja')
+  });
+  const { data: centrosCustoCasa = [], isLoading: loadingCdcCasa } = useQuery({
+      queryKey: ['centrosCustoCasa'],
+      queryFn: () => fetchCentrosCusto('casa')
+  });
+   const { data: centrosCustoLoja = [], isLoading: loadingCdcLoja } = useQuery({
+      queryKey: ['centrosCustoLoja'],
+      queryFn: () => fetchCentrosCusto('loja')
+  });
 
-  const calcularCaixaReal = useCallback(async (contexto: 'casa' | 'loja') => {
-    const hoje = getDataAtualBrasil();
-    let saldo = 0;
+  // Cálculos derivados dos dados buscados
+  const caixaRealCasa = lancamentosCasa.filter(l => l.data_lancamento <= hoje).reduce((acc, t) => acc + (t.tipo === 'entrada' ? t.valor : -t.valor), 0);
+  const caixaRealLoja = lancamentosLoja.filter(l => l.data <= hoje).reduce((acc, t) => acc + (t.tipo === 'entrada' ? (t.valor_pago ?? t.total) : -(t.valor_pago ?? t.total)), 0);
 
-    if (contexto === 'casa') {
-      const { data, error } = await supabase
-        .from('lancamentos_financeiros')
-        .select('valor, tipo')
-        .eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b')
-        .lte('data_lancamento', hoje); // Todas as transações até hoje
-      if (error) throw error;
-      saldo = data.reduce((acc, t) => acc + (t.tipo === 'entrada' ? t.valor : -t.valor), 0);
-    } else { // loja
-      const { data, error } = await supabase
-        .from('transacoes_loja')
-        .select('tipo, total, valor_pago')
-        .lte('data', hoje); // Todas as transações até hoje
-      if (error) throw error;
-      saldo = data.reduce((acc, t) => acc + (t.tipo === 'entrada' ? (t.valor_pago ?? t.total) : -(t.valor_pago ?? t.total)), 0);
+  const { entradasHojeCasa, saidasHojeCasa } = lancamentosCasa.filter(l => l.data_lancamento === hoje).reduce((acc, t) => {
+      t.tipo === 'entrada' ? acc.entradasHojeCasa += t.valor : acc.saidasHojeCasa += t.valor;
+      return acc;
+  }, { entradasHojeCasa: 0, saidasHojeCasa: 0 });
+
+  const { entradasHojeLoja, saidasHojeLoja } = lancamentosLoja.filter(l => l.data === hoje).reduce((acc, t) => {
+      const valor = t.valor_pago ?? t.total;
+      t.tipo === 'entrada' ? acc.entradasHojeLoja += valor : acc.saidasHojeLoja += valor;
+      return acc;
+  }, { entradasHojeLoja: 0, saidasHojeLoja: 0 });
+
+
+  const value = {
+    dados: {
+      todosLancamentosCasa: lancamentosCasa,
+      todosLancamentosLoja: lancamentosLoja,
+      centrosCustoCasa: centrosCustoCasa,
+      centrosCustoLoja: centrosCustoLoja,
+      caixaRealCasa,
+      caixaRealLoja,
+      entradasHojeCasa,
+      saidasHojeCasa,
+      entradasHojeLoja,
+      saidasHojeLoja,
+      isLoading: loadingCasa || loadingLoja || loadingCdcCasa || loadingCdcLoja,
     }
-    return saldo;
-  }, []);
-
-  const calcularHoje = useCallback(async (contexto: 'casa' | 'loja') => {
-    const hoje = getDataAtualBrasil();
-    let entradas = 0;
-    let saidas = 0;
-
-    if (contexto === 'casa') {
-        const { data, error } = await supabase
-            .from('lancamentos_financeiros')
-            .select('valor, tipo')
-            .eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b')
-            .eq('data_lancamento', hoje);
-        if (error) throw error;
-        data.forEach(t => t.tipo === 'entrada' ? entradas += t.valor : saidas += t.valor);
-    } else { // loja
-        const { data, error } = await supabase
-            .from('transacoes_loja')
-            .select('tipo, total, valor_pago')
-            .eq('data', hoje);
-        if (error) throw error;
-        data.forEach(t => {
-            const valor = t.valor_pago ?? t.total;
-            t.tipo === 'entrada' ? entradas += valor : saidas += valor;
-        });
-    }
-    return { entradas, saidas };
-  }, []);
-
-  const carregarDadosIniciais = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [
-        caixaCasa,
-        caixaLoja,
-        hojeCasa,
-        hojeLoja
-      ] = await Promise.all([
-        calcularCaixaReal('casa'),
-        calcularCaixaReal('loja'),
-        calcularHoje('casa'),
-        calcularHoje('loja')
-      ]);
-
-      setDados({
-        caixaRealCasa: caixaCasa || 0,
-        caixaRealLoja: caixaLoja || 0,
-        entradasHojeCasa: hojeCasa.entradas || 0,
-        saidasHojeCasa: hojeCasa.saidas || 0,
-        entradasHojeLoja: hojeLoja.entradas || 0,
-        saidasHojeLoja: hojeLoja.saidas || 0,
-        ultimaAtualizacao: Date.now(),
-      });
-    } catch (error) {
-      console.error("Erro ao carregar dados financeiros:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [calcularCaixaReal, calcularHoje]);
-
-  useEffect(() => {
-    carregarDadosIniciais();
-  }, [carregarDadosIniciais]);
-
-  const atualizarCaixaReal = useCallback(async (contexto: 'casa' | 'loja') => {
-    try {
-        const [novoCaixa, novosValoresHoje] = await Promise.all([
-            calcularCaixaReal(contexto),
-            calcularHoje(contexto)
-        ]);
-        
-        setDados(prev => ({
-            ...prev,
-            ...(contexto === 'casa' ? {
-                caixaRealCasa: novoCaixa,
-                entradasHojeCasa: novosValoresHoje.entradas,
-                saidasHojeCasa: novosValoresHoje.saidas
-            } : {
-                caixaRealLoja: novoCaixa,
-                entradasHojeLoja: novosValoresHoje.entradas,
-                saidasHojeLoja: novosValoresHoje.saidas
-            }),
-            ultimaAtualizacao: Date.now(),
-        }));
-    } catch (error) {
-        console.error(`Erro ao atualizar caixa ${contexto}:`, error);
-    }
-  }, [calcularCaixaReal, calcularHoje]);
-
-  const value = { dados, atualizarCaixaReal };
+  };
 
   return (
     <DadosFinanceirosContext.Provider value={value}>
@@ -156,7 +109,7 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
   );
 }
 
-// Hook
+// --- Hook ---
 export function useDadosFinanceiros() {
   const context = useContext(DadosFinanceirosContext);
   if (context === undefined) {

@@ -4,16 +4,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
 const fetchOrcamento = async (contexto: 'casa' | 'loja') => {
+  const tableName = `orcamentos_${contexto}`;
   const { data, error } = await supabase
-    .from('orcamentos')
-    .select('*')
-    .eq('contexto', contexto);
+    .from(tableName)
+    .select('*');
   if (error) throw new Error(error.message);
   return data;
 };
 
-const updateOrcamento = async (updates: any[]) => {
-  const { data, error } = await supabase.from('orcamentos').upsert(updates).select();
+interface UpdatePayload {
+  contexto: 'casa' | 'loja';
+  updates: any[];
+}
+
+const updateOrcamento = async ({ contexto, updates }: UpdatePayload) => {
+  const tableName = `orcamentos_${contexto}`;
+  const { data, error } = await supabase.from(tableName).upsert(updates).select();
   if (error) throw new Error(error.message);
   return data;
 };
@@ -26,12 +32,16 @@ export const useOrcamento = (contexto: 'casa' | 'loja') => {
     queryFn: () => fetchOrcamento(contexto),
   });
 
-  const mutation = useMutation({
+  const mutation = useMutation<any, Error, UpdatePayload>({
     mutationFn: updateOrcamento,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orcamento', contexto] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['orcamento', variables.contexto] });
     },
   });
 
-  return { ...query, update: mutation.mutate, isUpdating: mutation.isPending };
+  const updateWithContext = (updates: any[]) => {
+    mutation.mutate({ contexto, updates });
+  };
+
+  return { ...query, update: updateWithContext, isUpdating: mutation.isPending };
 };

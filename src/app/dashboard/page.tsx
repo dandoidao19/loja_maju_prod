@@ -1,12 +1,12 @@
 
 'use client';
 
-import CaixaUnificado from '@/components/CaixaUnificado';
+import DashboardTabs from '@/components/DashboardTabs';
 
 export default function DashboardPage() {
   return (
-    <div className="max-w-xl mx-auto">
-      <CaixaUnificado />
+    <div>
+      <DashboardTabs />
     </div>
   );
 }
