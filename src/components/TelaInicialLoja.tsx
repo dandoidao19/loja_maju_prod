@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataParaExibicao, getDataAtualBrasil } from '@/lib/dateUtils'
 import FiltroLancamentos from './FiltroLancamentos'
-import CaixaDetalhado from './CaixaDetalhado'
+import CaixaDetalhadoLoja from './CaixaDetalhadoLoja'
 import ModalPagarTransacao from './ModalPagarTransacao'
 import ModalEstornarTransacao from './ModalEstornarTransacao'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
@@ -407,7 +407,7 @@ export default function TelaInicialLoja() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 items-start">
         <div className="lg:col-span-1">
-          <CaixaDetalhado contexto="loja" onToggleTudo={(mostrarTudo) => {
+          <CaixaDetalhadoLoja onToggleTudo={(mostrarTudo) => {
             // Quando painel esquerdo solicitar "mostrar tudo", ativamos Ver Todas no painel direito
             setVerTodas(Boolean(mostrarTudo))
           }} />

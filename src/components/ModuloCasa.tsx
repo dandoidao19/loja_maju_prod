@@ -5,7 +5,7 @@ import ModalPagarAvancado from './ModalPagarAvancado'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
 import { getDataAtualBrasil, formatarDataParaExibicao } from '@/lib/dateUtils'
-import CaixaDetalhado from './CaixaDetalhado'
+import CaixaDetalhadoCasa from './CaixaDetalhadoCasa'
 import FiltroCasa from './FiltroCasa'
 import { GeradorPDFLancamentos } from '@/lib/gerador-pdf-lancamentos'
 
@@ -983,7 +983,7 @@ export default function ModuloCasa() {
 
       <div className="grid grid-cols-3 gap-1">
         <div className="col-span-1">
-          <CaixaDetalhado contexto="casa" titulo="CAIXA CASA" />
+          <CaixaDetalhadoCasa />
         </div>
 
         <div className="col-span-2">
