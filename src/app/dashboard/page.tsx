@@ -108,6 +108,7 @@ export default function Dashboard() {
               {menuItems.map((item) => (
                 <button
                   key={item.id}
+                  data-testid={`tab-${item.id}`}
                   onClick={() => setActiveSection(item.id)}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 text-xs ${getButtonStyle(item.id, item.color)}`}
                 >

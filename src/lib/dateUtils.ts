@@ -125,3 +125,19 @@ export function getMesAtualParaInput(): string {
   
   return `${ano}-${mes}`;
 }
+
+/**
+ * Formata uma data ISO (YYYY-MM-DD) para um formato curto (DD/MM) para visualização.
+ */
+export function formatarDataParaExibicaoSimples(dataISO: string): string {
+  try {
+    if (!dataISO) return "";
+
+    // Divide a string "YYYY-MM-DD" e pega o dia e o mês
+    const [_, mes, dia] = dataISO.split('-');
+
+    return `${dia}/${mes}`;
+  } catch {
+    return dataISO; // Retorna o original em caso de erro
+  }
+}
