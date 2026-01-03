@@ -57,8 +57,8 @@ export default function MenuCategorias() {
         throw new Error('Grupo deve ser uma única letra')
       }
 
-      if (form.percentual_repasse > 100) {
-        throw new Error('Percentual de repasse não pode ser maior que 100')
+      if (form.percentual_repasse < 0 || form.percentual_repasse > 100) {
+        throw new Error('Percentual de repasse deve estar entre 0 e 100')
       }
 
       if (editando) {
@@ -194,6 +194,7 @@ export default function MenuCategorias() {
               </label>
               <input
                 type="number"
+                min="0"
                 max="100"
                 step="0.01"
                 value={form.percentual_repasse}

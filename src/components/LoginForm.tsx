@@ -65,9 +65,8 @@ export default function LoginForm() {
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label htmlFor="email-input" className="block text-sm font-medium text-gray-700">Email</label>
+          <label className="block text-sm font-medium text-gray-700">Email</label>
           <input
-            id="email-input"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -76,9 +75,8 @@ export default function LoginForm() {
           />
         </div>
         <div>
-          <label htmlFor="password-input" className="block text-sm font-medium text-gray-700">Senha</label>
+          <label className="block text-sm font-medium text-gray-700">Senha</label>
           <input
-            id="password-input"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -87,7 +85,6 @@ export default function LoginForm() {
           />
         </div>
         <button
-          id="submit-button"
           type="submit"
           disabled={loading}
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"

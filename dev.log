@@ -1,0 +1,79 @@
+
+> loja-maju@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by an unknown process, using available port 3004 instead.
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3004
+- Network:       http://192.168.0.2:3004
+- Environments: .env.local
+
+✓ Starting...
+⚠ Turbopack's filesystem cache has been deleted because we previously detected an internal error in Turbopack. Builds or page loads may be slower as a result.
+✓ Ready in 4.5s
+○ Compiling / ...
+ GET / 200 in 15.5s (compile: 14.4s, render: 1059ms)
+○ Compiling /dashboard ...
+⨯ ./src/hooks/useCaixaPrevisto.ts:5:1
+Export formatarDataParaExibicaoSimples doesn't exist in target module
+[0m [90m 3 |[39m [36mimport[39m { supabase } [36mfrom[39m [32m'@/lib/supabase'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { useDadosFinanceiros } [36mfrom[39m [32m'@/context/DadosFinanceirosContext'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m { formatarDataParaExibicaoSimples } [36mfrom[39m [32m'@/lib/dateUtils'[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 6 |[39m
+ [90m 7 |[39m [90m// Tipos... (Estes podem ser movidos para um arquivo de tipos dedicado mais tarde)[39m
+ [90m 8 |[39m [36minterface[39m [33mLancamento[39m {[0m
+
+The export formatarDataParaExibicaoSimples was not found in module [project]/src/lib/dateUtils.ts [app-client] (ecmascript).
+Did you mean to import formatarDataParaExibicao?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/hooks/useCaixaPrevisto.ts [Client Component Browser]
+    ./src/hooks/useCaixaUniversal.ts [Client Component Browser]
+    ./src/components/CaixaUnificado.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/hooks/useCaixaPrevisto.ts [Client Component SSR]
+    ./src/hooks/useCaixaUniversal.ts [Client Component SSR]
+    ./src/components/CaixaUnificado.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+
+
+./src/hooks/useCaixaPrevisto.ts:5:1
+Export formatarDataParaExibicaoSimples doesn't exist in target module
+[0m [90m 3 |[39m [36mimport[39m { supabase } [36mfrom[39m [32m'@/lib/supabase'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { useDadosFinanceiros } [36mfrom[39m [32m'@/context/DadosFinanceirosContext'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m { formatarDataParaExibicaoSimples } [36mfrom[39m [32m'@/lib/dateUtils'[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 6 |[39m
+ [90m 7 |[39m [90m// Tipos... (Estes podem ser movidos para um arquivo de tipos dedicado mais tarde)[39m
+ [90m 8 |[39m [36minterface[39m [33mLancamento[39m {[0m
+
+The export formatarDataParaExibicaoSimples was not found in module [project]/src/lib/dateUtils.ts [app-ssr] (ecmascript).
+Did you mean to import formatarDataParaExibicao?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/hooks/useCaixaPrevisto.ts [Client Component Browser]
+    ./src/hooks/useCaixaUniversal.ts [Client Component Browser]
+    ./src/components/CaixaUnificado.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/hooks/useCaixaPrevisto.ts [Client Component SSR]
+    ./src/hooks/useCaixaUniversal.ts [Client Component SSR]
+    ./src/components/CaixaUnificado.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+
+ GET /dashboard 500 in 6.7s (compile: 6.5s, render: 177ms)
+ GET / 200 in 177ms (compile: 54ms, render: 124ms)

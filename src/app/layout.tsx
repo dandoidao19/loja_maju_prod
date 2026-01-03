@@ -1,22 +1,21 @@
-
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import './globals.css';
-import { Providers } from './providers';
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import CabecalhoSistema from "@/components/CabecalhoSistema";
 
 const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: 'LUCIUS - Sistema de Controle Financeiro',
-  description: 'Sistema completo de controle financeiro para casa e loja',
+  title: "LUCIUS - Sistema de Controle Financeiro",
+  description: "Sistema completo de controle financeiro para casa e loja",
 };
 
 export default function RootLayout({
@@ -29,11 +28,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          <main className="container mx-auto p-4">
-            {children}
-          </main>
-        </Providers>
+        {/* Cabeçalho do Sistema LUCIUS com Logos */}
+        <CabecalhoSistema />
+
+        {/* Conteúdo das páginas */}
+        {children}
       </body>
     </html>
   );

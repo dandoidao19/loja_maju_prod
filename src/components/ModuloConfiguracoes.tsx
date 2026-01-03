@@ -8,8 +8,6 @@ import MenuCategorias from './MenuCategorias'
 import ConfiguracaoLogos from './ConfiguracaoLogos'
 import ImportacaoExcelLoja from './ImportacaoExcelLoja'
 import EdicaoEmLote from './EdicaoEmLote'
-import OrcamentoMetasCasa from './OrcamentoMetasCasa'
-import OrcamentoMetasLoja from './OrcamentoMetasLoja'
 
 // Define os grupos e submenus - REORGANIZADO
 const gruposConfig = [
@@ -18,7 +16,6 @@ const gruposConfig = [
     titulo: '🏠 CASA',
     submenus: [
       { id: 'cdc', title: 'Centros de Custo', component: ControleCDC },
-      { id: 'orcamento-metas-casa', title: 'Orçamento e Metas', component: OrcamentoMetasCasa },
       { id: 'edicao-lote', title: 'Edição em Lote', component: EdicaoEmLote },
       { id: 'limpeza', title: 'Limpar Transações', component: LimparTransacoes },
       { id: 'importacao', title: 'Importar Excel', component: ImportacaoExcel },
@@ -30,7 +27,6 @@ const gruposConfig = [
     submenus: [
       { id: 'logos', title: 'Logomarcas e PDFs', component: ConfiguracaoLogos },
       { id: 'categorias', title: 'Categorias', component: MenuCategorias },
-      { id: 'orcamento-metas-loja', title: 'Orçamento e Metas', component: OrcamentoMetasLoja },
       { id: 'importacao-loja', title: 'Importar Dados', component: ImportacaoExcelLoja },
     ]
   }
@@ -65,14 +61,10 @@ export default function ModuloConfiguracoes() {
         return <ControleCDC onDataChange={handleDataChange} />
       case 'edicao-lote':
         return <EdicaoEmLote onDataChange={handleDataChange} />
-      case 'orcamento-metas-casa':
-        return <OrcamentoMetasCasa />;
       case 'categorias':
         return <MenuCategorias />
       case 'logos':
         return <ConfiguracaoLogos />
-      case 'orcamento-metas-loja':
-        return <OrcamentoMetasLoja />;
       case 'limpeza':
         return <LimparTransacoes onDataChange={handleDataChange} />
       case 'importacao':

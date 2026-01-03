@@ -5,8 +5,6 @@ import { useState } from 'react';
 import CaixaUnificado from '@/components/CaixaUnificado';
 import ModuloCasa from '@/components/ModuloCasa';
 import TelaInicialLoja from '@/components/TelaInicialLoja';
-// Futuramente, um componente para Configurações
-// import Configuracoes from '@/components/Configuracoes';
 
 type Tab = 'dashboard' | 'casa' | 'loja' | 'configuracoes';
 
@@ -22,7 +20,6 @@ export default function DashboardTabs() {
       case 'loja':
         return <TelaInicialLoja />;
       case 'configuracoes':
-        // return <Configuracoes />;
         return <p>Em desenvolvimento...</p>;
       default:
         return <CaixaUnificado />;
@@ -40,7 +37,7 @@ export default function DashboardTabs() {
       <div className="mb-4 border-b border-gray-200">
         <nav className="flex space-x-2" aria-label="Tabs">
           <button onClick={() => setActiveTab('dashboard')} className={getButtonClass('dashboard')}>
-            Dashboard
+            Caixa Universal
           </button>
           <button onClick={() => setActiveTab('casa')} className={getButtonClass('casa')}>
             Casa
