@@ -120,3 +120,5 @@ Persisting failed: Failed to compact database
 Caused by:
     0: Failed to deserialize used key hashes AMQF from 00000060.meta
     1: incompatible version
+✓ Compiled in 1109ms
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)

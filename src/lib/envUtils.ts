@@ -7,8 +7,8 @@
  * Em produção, esta variável deve ser 'false' ou não definida
  */
 export const isDevFeaturesEnabled = (): boolean => {
-  const envValue = process.env.NEXT_PUBLIC_ENABLE_DEV_FEATURES
-  return envValue === 'true'
+  // Retorna true diretamente para habilitar todos os recursos em todos os ambientes
+  return true
 }
 
 /**
