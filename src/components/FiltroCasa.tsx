@@ -26,7 +26,7 @@ interface FiltrosCasaProps {
   // Removido: onVerTudo e mostrarTodos
 }
 
-export default function FiltrosCasa({
+export default function FiltroCasa({
   filtroDataInicio,
   setFiltroDataInicio,
   filtroDataFim,

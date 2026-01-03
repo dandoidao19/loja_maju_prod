@@ -28,7 +28,7 @@ interface FiltrosLancamentosLojaProps {
   tipo?: string
 }
 
-export default function FiltrosLancamentosLoja({
+export default function FiltroLancamentosLoja({
   filtroDataInicio,
   setFiltroDataInicio,
   filtroDataFim,
