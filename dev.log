@@ -15,3 +15,108 @@
  GET /dashboard 200 in 888ms (compile: 503ms, render: 386ms)
  GET / 200 in 74ms (compile: 6ms, render: 68ms)
  GET /dashboard 200 in 63ms (compile: 4ms, render: 59ms)
+⨯ ./src/app/dashboard/page.tsx:7:1
+Module not found: Can't resolve '@/components/ResumoCaixas'
+[0m [90m  5 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m
+ [90m  6 |[39m [36mimport[39m { useEffect[33m,[39m useState } [36mfrom[39m [32m'react'[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m [33mResumoCaixas[39m [36mfrom[39m [32m'@/components/ResumoCaixas'[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m [36mimport[39m [33mModuloCasa[39m [36mfrom[39m [32m'@/components/ModuloCasa'[39m
+ [90m  9 |[39m [36mimport[39m [33mModuloConfiguracoes[39m [36mfrom[39m [32m'@/components/ModuloConfiguracoes'[39m
+ [90m 10 |[39m [36mimport[39m [33mModuloLoja[39m [36mfrom[39m [32m'@/components/ModuloLoja'[39m[0m
+
+Import map: aliased to relative './src/components/ResumoCaixas' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/dashboard/page.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/dashboard/page.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/dashboard/page.tsx:7:1
+Module not found: Can't resolve '@/components/ResumoCaixas'
+[0m [90m  5 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m
+ [90m  6 |[39m [36mimport[39m { useEffect[33m,[39m useState } [36mfrom[39m [32m'react'[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m [33mResumoCaixas[39m [36mfrom[39m [32m'@/components/ResumoCaixas'[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m [36mimport[39m [33mModuloCasa[39m [36mfrom[39m [32m'@/components/ModuloCasa'[39m
+ [90m  9 |[39m [36mimport[39m [33mModuloConfiguracoes[39m [36mfrom[39m [32m'@/components/ModuloConfiguracoes'[39m
+ [90m 10 |[39m [36mimport[39m [33mModuloLoja[39m [36mfrom[39m [32m'@/components/ModuloLoja'[39m[0m
+
+Import map: aliased to relative './src/components/ResumoCaixas' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/dashboard/page.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/dashboard/page.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/dashboard/page.tsx:7:1
+Module not found: Can't resolve '@/components/ResumoCaixas'
+[0m [90m  5 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m
+ [90m  6 |[39m [36mimport[39m { useEffect[33m,[39m useState } [36mfrom[39m [32m'react'[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m [33mResumoCaixas[39m [36mfrom[39m [32m'@/components/ResumoCaixas'[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m [36mimport[39m [33mModuloCasa[39m [36mfrom[39m [32m'@/components/ModuloCasa'[39m
+ [90m  9 |[39m [36mimport[39m [33mModuloConfiguracoes[39m [36mfrom[39m [32m'@/components/ModuloConfiguracoes'[39m
+ [90m 10 |[39m [36mimport[39m [33mModuloLoja[39m [36mfrom[39m [32m'@/components/ModuloLoja'[39m[0m
+
+Import map: aliased to relative './src/components/ResumoCaixas' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/dashboard/page.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/dashboard/page.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/dashboard/page.tsx:7:1
+Module not found: Can't resolve '@/components/ResumoCaixas'
+[0m [90m  5 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m
+ [90m  6 |[39m [36mimport[39m { useEffect[33m,[39m useState } [36mfrom[39m [32m'react'[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m [33mResumoCaixas[39m [36mfrom[39m [32m'@/components/ResumoCaixas'[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m [36mimport[39m [33mModuloCasa[39m [36mfrom[39m [32m'@/components/ModuloCasa'[39m
+ [90m  9 |[39m [36mimport[39m [33mModuloConfiguracoes[39m [36mfrom[39m [32m'@/components/ModuloConfiguracoes'[39m
+ [90m 10 |[39m [36mimport[39m [33mModuloLoja[39m [36mfrom[39m [32m'@/components/ModuloLoja'[39m[0m
+
+Import map: aliased to relative './src/components/ResumoCaixas' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/dashboard/page.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/dashboard/page.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+Persisting failed: Failed to compact database
+
+Caused by:
+    0: Failed to deserialize used key hashes AMQF from 00000060.meta
+    1: incompatible version
