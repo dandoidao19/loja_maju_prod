@@ -98,7 +98,7 @@ export const useCaixaUniversal = (month: string): CaixaData => {
         loading: false,
       });
     } catch (error) {
-      console.error('Erro ao buscar dados do caixa:', error);
+      console.error('Erro ao buscar dados do caixa (detalhado):', JSON.stringify(error, null, 2));
       setData(prev => ({ ...prev, loading: false }));
     }
   }, [month]);
