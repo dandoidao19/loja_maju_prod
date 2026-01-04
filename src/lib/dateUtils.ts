@@ -126,3 +126,50 @@ export const calcularDataNDias = (dataBase: string, dias: number): string => {
   const data = new Date(ano, mes - 1, dia + dias)
   return formatter.format(data)
 };
+
+export const buildCumulativeSeries = (entriesRaw: Array<any>, desiredEnd?: string) => {
+  if (!entriesRaw || entriesRaw.length === 0) return { series: [] as any[], minDate: '', maxDate: '' }
+
+  const uniq = new Map<string, any>()
+  entriesRaw.forEach((r: any) => {
+    const data = normalizeDate(r.data)
+    if (!data) return
+    const tipo = r.tipo || ''
+    const valor = Number(r.valor ?? r.total ?? 0) || 0
+    const idKey = r.id ?? r.uuid ?? null
+    const key = idKey ? String(idKey) : `${data}|${tipo}|${valor}`
+    if (!uniq.has(key)) uniq.set(key, { id: idKey, data, tipo, valor })
+  })
+
+  const uniqueEntries = Array.from(uniq.values())
+  if (uniqueEntries.length === 0) return { series: [] as any[], minDate: '', maxDate: '' }
+
+  const datas = uniqueEntries.map(e => e.data).filter(Boolean)
+  const minDate = datas.reduce((a, b) => (a < b ? a : b))
+  const maxDateEntries = datas.reduce((a, b) => (a > b ? a : b))
+  const maxDate = desiredEnd && desiredEnd > maxDateEntries ? desiredEnd : maxDateEntries
+
+  const agrup: Record<string, { receitas: number, despesas: number }> = {}
+  uniqueEntries.forEach((r: any) => {
+    const d = r.data
+    if (!agrup[d]) agrup[d] = { receitas: 0, despesas: 0 }
+    if (r.tipo === 'entrada') agrup[d].receitas += Number(r.valor) || 0
+    else agrup[d].despesas += Number(r.valor) || 0
+  })
+
+  const listaDatas = gerarIntervaloDatas(minDate, maxDate)
+  const series: any[] = []
+  let saldoAtual = 0
+  listaDatas.forEach(data => {
+    const valores = agrup[data] || { receitas: 0, despesas: 0 }
+    saldoAtual += (valores.receitas - valores.despesas)
+    series.push({
+      data,
+      data_formatada: formatarDataParaExibicao(data),
+      receitas: valores.receitas,
+      despesas: valores.despesas,
+      saldo_acumulado: saldoAtual
+    })
+  })
+  return { series, minDate, maxDate }
+}

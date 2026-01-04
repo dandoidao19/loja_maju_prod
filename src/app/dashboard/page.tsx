@@ -139,7 +139,7 @@ export default function Dashboard() {
 
           {/* Conteúdo Dinâmico */}
           {devFeaturesEnabled && activeSection === 'dashboard' && (
-            <div>
+            <div className="w-full md:w-1/3">
               <DashboardComponent />
             </div>
           )}

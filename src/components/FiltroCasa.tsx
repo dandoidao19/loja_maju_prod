@@ -1,220 +1,183 @@
 'use client'
 
 import { useState } from 'react'
+import { getDataAtualBrasil } from '@/lib/dateUtils'
 
-interface FiltrosCasaProps {
-  // Filtros
+interface FiltrosLancamentosCasaProps {
   filtroDataInicio: string
-  setFiltroDataInicio: (v: string) => void
+  setFiltroDataInicio: (value: string) => void
   filtroDataFim: string
-  setFiltroDataFim: (v: string) => void
+  setFiltroDataFim: (value: string) => void
   filtroMes: string
-  setFiltroMes: (v: string) => void
+  setFiltroMes: (value: string) => void
+  filtroNumeroTransacao: string
+  setFiltroNumeroTransacao: (value: string) => void
   filtroDescricao: string
-  setFiltroDescricao: (v: string) => void
-  filtroCDC: string
-  setFiltroCDC: (v: string) => void
+  setFiltroDescricao: (value: string) => void
+  filtroTipo: string
+  setFiltroTipo: (value: string) => void
   filtroStatus: string
-  setFiltroStatus: (v: string) => void
-  
-  // Dados
-  centrosCusto?: any[]
-  
-  // Ações
+  setFiltroStatus: (value: string) => void
+  filtroCDC: string
+  setFiltroCDC: (value: string) => void
+  centrosCusto: any[]
   onLimpar: () => void
-  onGerarPDF?: () => void
-  // Removido: onVerTudo e mostrarTodos
+  onGerarPDF: () => void
+  mostrarCDC?: boolean
+  mostrarNumeroTransacao?: boolean
+  mostrarTipo?: boolean
+  labelsDataComoVencimento?: boolean
+  titulo?: string
+  tipo?: string
 }
 
-export default function FiltroCasa({
+export default function FiltroLancamentosCasa({
   filtroDataInicio,
   setFiltroDataInicio,
   filtroDataFim,
   setFiltroDataFim,
   filtroMes,
   setFiltroMes,
+  filtroNumeroTransacao,
+  setFiltroNumeroTransacao,
   filtroDescricao,
   setFiltroDescricao,
-  filtroCDC,
-  setFiltroCDC,
+  filtroTipo,
+  setFiltroTipo,
   filtroStatus,
   setFiltroStatus,
-  centrosCusto = [],
+  filtroCDC,
+  setFiltroCDC,
+  centrosCusto,
   onLimpar,
-  onGerarPDF
-}: FiltrosCasaProps) {
-  const [aberto, setAberto] = useState(false)
+  onGerarPDF,
+  mostrarCDC = true,
+  mostrarNumeroTransacao = false,
+  mostrarTipo = true,
+  labelsDataComoVencimento = true,
+  titulo = "Filtros de Financeiro - Casa",
+  tipo = "geral"
+}: FiltrosLancamentosCasaProps) {
 
-  // Gerar lista de meses (últimos 12 meses + próximos 12 meses)
-  const gerarMeses = () => {
-    const meses = []
+  // ✅ FUNÇÃO para definir filtro rápido dos últimos 10 dias (Casa)
+  const definirUltimos10Dias = () => {
     const hoje = new Date()
+    const fim = hoje.toISOString().split('T')[0]
     
-    for (let i = 11; i >= 0; i--) {
-      const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1)
-      const ano = data.getFullYear()
-      const mes = String(data.getMonth() + 1).padStart(2, '0')
-      const valor = `${ano}-${mes}`
-      
-      const nomeMes = data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-      meses.push({ valor, nome: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1) })
-    }
+    const inicio = new Date(hoje)
+    inicio.setDate(hoje.getDate() - 10)
+    const inicioStr = inicio.toISOString().split('T')[0]
     
-    for (let i = 1; i <= 12; i++) {
-      const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
-      const ano = data.getFullYear()
-      const mes = String(data.getMonth() + 1).padStart(2, '0')
-      const valor = `${ano}-${mes}`
-      
-      const nomeMes = data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-      meses.push({ valor, nome: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1) })
-    }
+    setFiltroDataInicio(inicioStr)
+    setFiltroDataFim(fim)
+    setFiltroMes('')
+    setFiltroNumeroTransacao('')
+    setFiltroDescricao('')
+    setFiltroTipo('todos')
+    setFiltroStatus('todos')
     
-    return meses
+    console.log(`🏠 Casa - Filtro rápido: Últimos 10 dias (${inicioStr} até ${fim})`)
   }
 
-  const meses = gerarMeses()
+  // ✅ FUNÇÃO para definir filtro rápido do mês atual (Casa)
+  const definirMesAtual = () => {
+    const hoje = new Date()
+    const ano = hoje.getFullYear()
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0')
 
-  // Opções de status
-  const getStatusOptions = () => {
-    return [
-      { value: 'todos', label: 'Todos' },
-      { value: 'realizado', label: 'Realizado' },
-      { value: 'previsto', label: 'Previsto' }
-    ]
+    const primeiroDia = `${ano}-${mes}-01`
+    const ultimoDia = new Date(ano, hoje.getMonth() + 1, 0).getDate()
+    const ultimoDiaStr = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
+
+    setFiltroDataInicio(primeiroDia)
+    setFiltroDataFim(ultimoDiaStr)
+    setFiltroMes(`${ano}-${mes}`)
+    setFiltroNumeroTransacao('')
+    setFiltroDescricao('')
+    setFiltroTipo('todos')
+    setFiltroStatus('todos')
+
+    console.log(`🏠 Casa - Filtro rápido: Mês Atual (${primeiroDia} até ${ultimoDiaStr})`)
+  }
+
+  // ✅ FUNÇÃO para definir filtro rápido de hoje (Casa)
+  const definirHoje = () => {
+    const hoje = getDataAtualBrasil()
+    setFiltroDataInicio(hoje)
+    setFiltroDataFim(hoje)
+    setFiltroMes('')
+    setFiltroNumeroTransacao('')
+    setFiltroDescricao('')
+    setFiltroTipo('todos')
+    setFiltroStatus('todos')
+
+    console.log(`🏠 Casa - Filtro rápido: Hoje (${hoje})`)
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md mb-3">
-      {/* Cabeçalho Minimizado */}
-      <button
-        onClick={() => setAberto(!aberto)}
-        className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold text-gray-800 hover:bg-gray-50 transition-colors rounded-lg"
-      >
-        <span>🔍 Filtros de Lançamentos</span>
-        <span className="text-lg">{aberto ? '▼' : '▶'}</span>
-      </button>
+    <div className="bg-white rounded-lg shadow-md p-3 space-y-2">
+      <h2 className="text-sm font-semibold text-gray-800 mb-2">{titulo}</h2>
 
-      {/* Conteúdo dos Filtros */}
-      {aberto && (
-        <div className="px-3 pb-3 pt-2 border-t border-gray-200">
-          {/* Grid com 6 colunas - ORDEM: Data Início, Data Fim, Mês, Descrição, CDC, Status */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1">
-            {/* Data Início */}
-            <div className="col-span-1">
-              <label className="block text-[9px] font-medium text-gray-700 mb-0.5">
-                Início Data
-              </label>
-              <input
-                type="date"
-                value={filtroDataInicio}
-                onChange={(e) => setFiltroDataInicio(e.target.value)}
-                className="w-full px-1.5 py-0.5 text-[10px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
+      {/* ✅ FILTROS RÁPIDOS ESPECÍFICOS PARA CASA */}
+      <div className="flex flex-wrap gap-1 mb-2">
+        <button
+          onClick={definirUltimos10Dias}
+          className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+        >
+          📅 Últimos 10 Dias
+        </button>
+        <button
+          onClick={definirMesAtual}
+          className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors"
+        >
+          📊 Mês Atual
+        </button>
+        <button
+          onClick={definirHoje}
+          className="px-2 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors"
+        >
+          🎯 Hoje
+        </button>
+        <button
+          onClick={onLimpar}
+          className="px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
+        >
+          🧹 Limpar
+        </button>
+        <button
+          onClick={onGerarPDF}
+          className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+        >
+          📄 Gerar PDF
+        </button>
+      </div>
 
-            {/* Data Fim */}
-            <div className="col-span-1">
-              <label className="block text-[9px] font-medium text-gray-700 mb-0.5">
-                Fim Data
-              </label>
-              <input
-                type="date"
-                value={filtroDataFim}
-                onChange={(e) => setFiltroDataFim(e.target.value)}
-                className="w-full px-1.5 py-0.5 text-[10px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Mês Fechado */}
-            <div className="col-span-1">
-              <label className="block text-[9px] font-medium text-gray-700 mb-0.5">
-                Mês Fechado
-              </label>
-              <select
-                value={filtroMes}
-                onChange={(e) => setFiltroMes(e.target.value)}
-                className="w-full px-1.5 py-0.5 text-[10px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">Todos</option>
-                {meses.map(m => (
-                  <option key={m.valor} value={m.valor} className="text-[10px]">{m.nome}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Descrição */}
-            <div className="col-span-1">
-              <label className="block text-[9px] font-medium text-gray-700 mb-0.5">
-                Descrição
-              </label>
-              <input
-                type="text"
-                value={filtroDescricao}
-                onChange={(e) => setFiltroDescricao(e.target.value)}
-                placeholder="Buscar descrição..."
-                className="w-full px-1.5 py-0.5 text-[10px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* CDC */}
-            <div className="col-span-1">
-              <label className="block text-[9px] font-medium text-gray-700 mb-0.5">
-                CDC
-              </label>
-              <select
-                value={filtroCDC}
-                onChange={(e) => setFiltroCDC(e.target.value)}
-                className="w-full px-1.5 py-0.5 text-[10px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">Todos</option>
-                {centrosCusto.map(centro => (
-                  <option key={centro.id} value={centro.id} className="text-[10px]">
-                    {centro.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Status */}
-            <div className="col-span-1">
-              <label className="block text-[9px] font-medium text-gray-700 mb-0.5">
-                Status
-              </label>
-              <select
-                value={filtroStatus}
-                onChange={(e) => setFiltroStatus(e.target.value)}
-                className="w-full px-1.5 py-0.5 text-[10px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                {getStatusOptions().map(option => (
-                  <option key={option.value} value={option.value} className="text-[10px]">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Botões de Ação */}
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={onLimpar}
-              className="px-2 py-0.5 bg-gray-500 text-white text-[10px] rounded hover:bg-gray-600 transition-colors"
-            >
-              🗑️ Limpar
-            </button>
-            
-            {onGerarPDF && (
-              <button
-                onClick={onGerarPDF}
-                className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded hover:bg-red-600 transition-colors"
-              >
-                📄 PDF
-              </button>
-            )}
-          </div>
+      {/* FILTROS MANUAIS (mesmo layout) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Descrição</label>
+          <input type="text" value={filtroDescricao} onChange={(e) => setFiltroDescricao(e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-300 rounded"/>
         </div>
-      )}
+        {mostrarCDC && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Centro de Custo</label>
+            <select value={filtroCDC} onChange={(e) => setFiltroCDC(e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-300 rounded">
+              <option value="">Todos</option>
+              {centrosCusto.map(cdc => (
+                <option key={cdc.id} value={cdc.id}>{cdc.nome}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+          <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-300 rounded">
+            <option value="todos">Todos</option>
+            <option value="realizado">Realizado</option>
+            <option value="previsto">Previsto</option>
+          </select>
+        </div>
+      </div>
     </div>
   )
 }

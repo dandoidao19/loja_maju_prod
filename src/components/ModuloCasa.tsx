@@ -778,6 +778,10 @@ export default function ModuloCasa() {
         centrosCusto={centrosCusto}
         onLimpar={limparFiltros}
         onGerarPDF={gerarPDF}
+        filtroNumeroTransacao=""
+        setFiltroNumeroTransacao={() => {}}
+        filtroTipo=""
+        setFiltroTipo={() => {}}
       />
 
       <ModalPagarAvancado 

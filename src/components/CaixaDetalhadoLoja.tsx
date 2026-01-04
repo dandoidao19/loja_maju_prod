@@ -8,8 +8,10 @@ import {
   normalizeDate,
   gerarIntervaloDatas,
   calcularDataNDias,
+  buildCumulativeSeries,
 } from '@/lib/dateUtils'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
+import { useCaixaDetalhado } from '@/hooks/useCaixaDetalhado'
 
 interface DiaCaixa {
   data: string
@@ -25,80 +27,17 @@ export default function CaixaDetalhadoLoja({ onToggleTudo }: { onToggleTudo?: (m
   const [caixaReal, setCaixaReal] = useState(0)
   const [entradasHoje, setEntradasHoje] = useState<number>(0)
   const [saidasHoje, setSaidasHoje] = useState<number>(0)
-  const [caixaPrevisto, setCaixaPrevisto] = useState<DiaCaixa[]>([])
-  const [carregando, setCarregando] = useState(false)
   const [mostrando30Dias, setMostrando30Dias] = useState(true)
   const [mostrandoMes, setMostrandoMes] = useState(false)
   const [mostrandoHistorico, setMostrandoHistorico] = useState(false)
   const [mesFiltro, setMesFiltro] = useState('')
-  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(0)
 
-  const carregandoRef = useRef(false)
-  const lastLoadRef = useRef(0)
-
-  const fetchAll = useCallback(async (fromTable: string, selectFields = '*', orderColumn = 'id') => {
-    const pageSize = 1000
-    let offset = 0
-    const all: any[] = []
-    while (true) {
-      const from = offset
-      const to = offset + pageSize - 1
-      const { data, error } = await supabase.from(fromTable).select(selectFields).order(orderColumn, { ascending: true }).range(from, to)
-      if (error) throw error
-      if (!data || data.length === 0) break
-      all.push(...data)
-      if (data.length < pageSize) break
-      offset += pageSize
-    }
-    return all
-  }, [])
-
-  const buildCumulativeSeries = useCallback((entriesRaw: Array<any>, desiredEnd?: string) => {
-    if (!entriesRaw || entriesRaw.length === 0) return { series: [] as DiaCaixa[], minDate: '', maxDate: '' }
-
-    const uniq = new Map<string, any>()
-    entriesRaw.forEach((r: any) => {
-      const data = normalizeDate(r.data)
-      if (!data) return
-      const tipo = r.tipo || ''
-      const valor = Number(r.valor ?? r.total ?? 0) || 0
-      const idKey = r.id ?? r.uuid ?? null
-      const key = idKey ? String(idKey) : `${data}|${tipo}|${valor}`
-      if (!uniq.has(key)) uniq.set(key, { id: idKey, data, tipo, valor })
-    })
-
-    const uniqueEntries = Array.from(uniq.values())
-    if (uniqueEntries.length === 0) return { series: [] as DiaCaixa[], minDate: '', maxDate: '' }
-
-    const datas = uniqueEntries.map(e => e.data).filter(Boolean)
-    const minDate = datas.reduce((a, b) => (a < b ? a : b))
-    const maxDateEntries = datas.reduce((a, b) => (a > b ? a : b))
-    const maxDate = desiredEnd && desiredEnd > maxDateEntries ? desiredEnd : maxDateEntries
-
-    const agrup: Record<string, { receitas: number, despesas: number }> = {}
-    uniqueEntries.forEach((r: any) => {
-      const d = r.data
-      if (!agrup[d]) agrup[d] = { receitas: 0, despesas: 0 }
-      if (r.tipo === 'entrada') agrup[d].receitas += Number(r.valor) || 0
-      else agrup[d].despesas += Number(r.valor) || 0
-    })
-
-    const listaDatas = gerarIntervaloDatas(minDate, maxDate)
-    const series: DiaCaixa[] = []
-    let saldoAtual = 0
-    listaDatas.forEach(data => {
-      const valores = agrup[data] || { receitas: 0, despesas: 0 }
-      saldoAtual += (valores.receitas - valores.despesas)
-      series.push({
-        data,
-        data_formatada: formatarDataParaExibicao(data),
-        receitas: valores.receitas,
-        despesas: valores.despesas,
-        saldo_acumulado: saldoAtual
-      })
-    })
-    return { series, minDate, maxDate }
-  }, [])
+  const { data: caixaPrevisto, isLoading: carregando, isSuccess } = useCaixaDetalhado('loja', {
+    mostrando30Dias,
+    mostrandoMes,
+    mostrandoHistorico,
+    mesFiltro,
+  });
 
   useEffect(() => {
     const hoje = new Date()
@@ -113,102 +52,6 @@ export default function CaixaDetalhadoLoja({ onToggleTudo }: { onToggleTudo?: (m
       setCaixaReal(caixaContexto)
     }
   }, [dados.caixaRealLoja, caixaReal])
-
-  const calcularHoje = useCallback(async () => {
-    try {
-      const { data: transacoesHoje, error } = await supabase
-        .from('transacoes_loja')
-        .select('tipo, total, valor_pago, status_pagamento')
-        .eq('status_pagamento', 'pago')
-        .eq('data', getDataAtualBrasil())
-
-      if (error) throw error
-
-      let entradas = 0
-      let saidas = 0
-
-      if (Array.isArray(transacoesHoje)) {
-        transacoesHoje.forEach(item => {
-          const valor = item.valor_pago !== null && item.valor_pago !== undefined ? item.valor_pago : item.total
-          const v = Number(valor) || 0
-          if (item.tipo === 'entrada') entradas += v
-          else saidas += v
-        })
-      }
-      setEntradasHoje(entradas)
-      setSaidasHoje(saidas)
-    } catch (error) {
-      console.error(`❌ Erro ao calcular hoje:`, error)
-    }
-  }, [])
-
-  const carregarCaixaPrevisto = useCallback(async () => {
-    const now = Date.now()
-    if (now - lastLoadRef.current < 700) return
-    lastLoadRef.current = now
-
-    if (carregandoRef.current) return
-    carregandoRef.current = true
-    setCarregando(caixaPrevisto.length === 0)
-
-    try {
-      const hoje = getDataAtualBrasil()
-      let novoResultado: DiaCaixa[] = []
-      let displayStart = ''
-      let displayEnd = ''
-
-      if (mostrandoHistorico) {
-        const transacoes = await fetchAll('transacoes_loja', 'id, tipo, total, valor_pago, status_pagamento, data', 'data');
-        const allEntries = (transacoes || []).map((t: any) => ({ id: t.id ?? null, data: normalizeDate(t.data), tipo: t.tipo, valor: Number(t.valor_pago ?? t.total) || 0 })).filter((t: any) => t.data)
-        if (allEntries.length > 0) {
-          const { series } = buildCumulativeSeries(allEntries)
-          novoResultado = series.filter((s: DiaCaixa) => s.data >= hoje)
-        } else {
-          novoResultado = []
-        }
-      } else {
-        if (mostrando30Dias) {
-          const ontem = calcularDataNDias(hoje, -1)
-          displayStart = ontem
-          displayEnd = calcularDataNDias(ontem, 29)
-        } else if (mostrandoMes && mesFiltro) {
-          const [ano, mes] = mesFiltro.split('-')
-          displayStart = `${ano}-${mes}-01`
-          const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate()
-          displayEnd = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
-        } else {
-          const ontem = calcularDataNDias(hoje, -1)
-          displayStart = ontem
-          displayEnd = calcularDataNDias(ontem, 29)
-        }
-
-        const transacoes = await fetchAll('transacoes_loja', 'id, tipo, total, valor_pago, status_pagamento, data', 'data');
-        const allEntries = (transacoes || []).map((t: any) => ({ id: t.id ?? null, data: normalizeDate(t.data), tipo: t.tipo, valor: Number(t.valor_pago ?? t.total) || 0 })).filter((t: any) => t.data)
-        const { series } = buildCumulativeSeries(allEntries, displayEnd as string)
-        novoResultado = series.filter((s: DiaCaixa) => s.data >= displayStart && s.data <= displayEnd)
-      }
-
-      setCaixaPrevisto(novoResultado)
-      setUltimaAtualizacao(Date.now())
-    } catch (error) {
-      console.error(`❌ Erro ao carregar caixa previsto:`, error)
-    } finally {
-      setCarregando(false)
-      carregandoRef.current = false
-    }
-  }, [mostrando30Dias, mostrandoMes, mostrandoHistorico, mesFiltro, fetchAll, buildCumulativeSeries, caixaPrevisto])
-
-  useEffect(() => {
-    calcularHoje()
-    carregarCaixaPrevisto()
-  }, [mostrando30Dias, mostrandoMes, mostrandoHistorico, mesFiltro, carregarCaixaPrevisto, calcularHoje])
-
-  useEffect(() => {
-    if (dados.ultimaAtualizacao > ultimaAtualizacao) {
-      calcularHoje()
-      carregarCaixaPrevisto()
-    }
-  }, [dados.ultimaAtualizacao, calcularHoje, carregarCaixaPrevisto, ultimaAtualizacao])
 
   const handleMudarParaMes = () => {
     setMostrando30Dias(false)
@@ -306,11 +149,11 @@ export default function CaixaDetalhadoLoja({ onToggleTudo }: { onToggleTudo?: (m
         <div style={periodoLinhaStyle} title={getTituloPrevisao()}>{getTituloPrevisao()}</div>
         {carregando ? (
           <p className="text-gray-500 text-center py-2" style={{ fontSize: '12px' }}>Carregando...</p>
-        ) : caixaPrevisto.length > 0 ? (
+        ) : caixaPrevisto && caixaPrevisto.length > 0 ? (
           <div className="overflow-x-auto">
             <div className="text-[10px] text-gray-500 mb-1">
               Mostrando {caixaPrevisto.length} dias
-              <span className="ml-2 text-blue-500">✓ {new Date(ultimaAtualizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="ml-2 text-blue-500">✓ {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <table className="w-full text-xs border-collapse">
               <thead>

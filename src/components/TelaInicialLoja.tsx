@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataParaExibicao, getDataAtualBrasil } from '@/lib/dateUtils'
-import FiltroLancamentos from './FiltroLancamentos'
+import FiltroLoja from './FiltroLoja'
 import CaixaDetalhadoLoja from './CaixaDetalhadoLoja'
 import ModalPagarTransacao from './ModalPagarTransacao'
 import ModalEstornarTransacao from './ModalEstornarTransacao'
@@ -380,7 +380,7 @@ export default function TelaInicialLoja() {
 
   return (
     <div className="space-y-3">
-      <FiltroLancamentos
+      <FiltroLoja
         filtroDataInicio={filtroDataInicio}
         setFiltroDataInicio={setFiltroDataInicio}
         filtroDataFim={filtroDataFim}

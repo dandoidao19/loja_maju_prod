@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { getDataAtualBrasil, prepararDataParaInsert, formatarDataParaExibicao } from '@/lib/dateUtils'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
@@ -30,13 +31,73 @@ export default function ModalPagarTransacao({
   onClose, 
   onPagamentoRealizado 
 }: ModalPagarTransacaoProps) {
-  const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [dataPagamento, setDataPagamento] = useState(getDataAtualBrasil())
   const [pagarValorTotal, setPagarValorTotal] = useState(true)
   const [valorPago, setValorPago] = useState(0)
   const [jurosDescontos, setJurosDescontos] = useState(0)
   const { atualizarCaixaReal } = useDadosFinanceiros()
+  const queryClient = useQueryClient()
+
+  const pagarTransacaoMutation = useMutation({
+    mutationFn: async () => {
+      if (!transacao) throw new Error("Transação não encontrada");
+      if (!validarDados()) throw new Error("Dados de pagamento inválidos");
+
+      const dataPagamentoFormatada = prepararDataParaInsert(dataPagamento);
+      const jurosDescontosCalculado = valorPago - transacao.valor;
+      let statusPagamento = 'pago';
+
+      if (transacao.origem_id) {
+        const { error: errorTransacaoLoja } = await supabase
+          .from('transacoes_loja')
+          .update({
+            status_pagamento: statusPagamento,
+            data_pagamento: dataPagamentoFormatada,
+            data_original: transacao.data,
+            valor_pago: valorPago,
+            juros_descontos: jurosDescontosCalculado
+          })
+          .eq('id', transacao.origem_id);
+        if (errorTransacaoLoja) throw new Error(`Erro ao atualizar transação: ${errorTransacaoLoja.message}`);
+
+        if (transacao.tipo === 'entrada') {
+          const { error: errorVenda } = await supabase.from('vendas').update({ status_pagamento: statusPagamento }).ilike('cliente', `%${transacao.descricao}%`).eq('numero_transacao', transacao.numero_transacao);
+          if (errorVenda) console.warn('⚠️ Não foi possível atualizar status da venda:', errorVenda.message);
+        }
+
+        if (transacao.tipo === 'saida') {
+          const { error: errorCompra } = await supabase.from('compras').update({ status_pagamento: statusPagamento }).ilike('fornecedor', `%${transacao.descricao}%`).eq('numero_transacao', transacao.numero_transacao);
+          if (errorCompra) console.warn('⚠️ Não foi possível atualizar status da compra:', errorCompra.message);
+        }
+      }
+      await atualizarCaixaReal('loja');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transacoes_loja'] });
+      queryClient.invalidateQueries({ queryKey: ['vendas'] });
+      queryClient.invalidateQueries({ queryKey: ['compras'] });
+
+      let mensagem = `✅ Parcela da ${transacao?.tipo === 'entrada' ? 'venda' : 'compra'} #${transacao?.numero_transacao} `;
+      if (pagarValorTotal) {
+        mensagem += `paga integralmente em ${formatarDataDisplay(dataPagamento)}`;
+      } else {
+        const jurosDescontosCalculado = valorPago - (transacao?.valor || 0);
+        mensagem += `com pagamento de R$ ${valorPago.toFixed(2)} em ${formatarDataDisplay(dataPagamento)}`;
+        if (jurosDescontosCalculado !== 0) {
+          mensagem += ` (${getSinalJurosDescontos()} R$ ${Math.abs(jurosDescontosCalculado).toFixed(2)} de ${getTipoJurosDescontos()})`;
+        }
+      }
+      alert(mensagem);
+      onPagamentoRealizado();
+      onClose();
+    },
+    onError: (error) => {
+      setErro(error.message);
+    }
+  });
+
+  const { isPending: loading } = pagarTransacaoMutation;
 
   useEffect(() => {
     if (aberto && transacao) {
@@ -136,115 +197,10 @@ export default function ModalPagarTransacao({
     return true
   }
 
-  const handlePagar = async () => {
-    if (!transacao) return
-    
-    if (!validarDados()) {
-      return
-    }
-    
-    setLoading(true)
-    setErro('')
-    
-    try {
-      const dataPagamentoFormatada = prepararDataParaInsert(dataPagamento)
-      
-      // ✅ CALCULAR juros_descontos (valor_pago - valor_original)
-      const jurosDescontosCalculado = valorPago - transacao.valor
-      
-      console.log('📅 Pagamento da transação:', {
-        transacaoId: transacao.origem_id,
-        numeroTransacao: transacao.numero_transacao,
-        dataPagamento: dataPagamentoFormatada,
-        tipo: transacao.tipo,
-        valorOriginal: transacao.valor,
-        valorPago: valorPago,
-        jurosDescontos: jurosDescontosCalculado,
-        totalImpacto: calcularTotalImpacto()
-      })
-
-      // SEMPRE status 'pago', não permite 'parcial'
-      let statusPagamento = 'pago'
-
-      if (transacao.origem_id) {
-        const { error: errorTransacaoLoja } = await supabase
-          .from('transacoes_loja')
-          .update({ 
-            status_pagamento: statusPagamento,
-            data_pagamento: dataPagamentoFormatada,
-            data_original: transacao.data,
-            // ✅ GRAVAR valor_pago E juros_descontos
-            valor_pago: valorPago,
-            juros_descontos: jurosDescontosCalculado
-          })
-          .eq('id', transacao.origem_id)
-        
-        if (errorTransacaoLoja) {
-          throw new Error(`Erro ao atualizar transação: ${errorTransacaoLoja.message}`)
-        }
-        
-        console.log('✅ Transação atualizada com valor_pago:', {
-          dataPagamento: dataPagamentoFormatada,
-          valorOriginal: transacao.valor,
-          valorPago: valorPago,
-          jurosDescontos: jurosDescontosCalculado,
-          status: statusPagamento
-        })
-        
-        if (transacao.tipo === 'entrada') {
-          const { error: errorVenda } = await supabase
-            .from('vendas')
-            .update({ 
-              status_pagamento: statusPagamento
-            })
-            .ilike('cliente', `%${transacao.descricao}%`)
-            .eq('numero_transacao', transacao.numero_transacao)
-          
-          if (errorVenda) {
-            console.warn('⚠️ Não foi possível atualizar status da venda:', errorVenda.message)
-          }
-        }
-        
-        if (transacao.tipo === 'saida') {
-          const { error: errorCompra } = await supabase
-            .from('compras')
-            .update({ 
-              status_pagamento: statusPagamento
-            })
-            .ilike('fornecedor', `%${transacao.descricao}%`)
-            .eq('numero_transacao', transacao.numero_transacao)
-          
-          if (errorCompra) {
-            console.warn('⚠️ Não foi possível atualizar status da compra:', errorCompra.message)
-          }
-        }
-      }
-      
-      await atualizarCaixaReal('loja')
-      
-      let mensagem = `✅ Parcela da ${transacao.tipo === 'entrada' ? 'venda' : 'compra'} #${transacao.numero_transacao} `
-      
-      if (pagarValorTotal) {
-        mensagem += `paga integralmente em ${formatarDataDisplay(dataPagamento)}`
-      } else {
-        mensagem += `com pagamento de R$ ${valorPago.toFixed(2)} em ${formatarDataDisplay(dataPagamento)}`
-        
-        if (jurosDescontosCalculado !== 0) {
-          mensagem += ` (${getSinalJurosDescontos()} R$ ${Math.abs(jurosDescontosCalculado).toFixed(2)} de ${getTipoJurosDescontos()})`
-        }
-      }
-      
-      alert(mensagem)
-      
-      onPagamentoRealizado()
-      onClose()
-    } catch (error) {
-      console.error('❌ Erro ao processar pagamento:', error)
-      setErro(error instanceof Error ? error.message : 'Erro ao processar pagamento. Tente novamente.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const handlePagar = () => {
+    setErro('');
+    pagarTransacaoMutation.mutate();
+  };
 
   if (!aberto || !transacao) return null
 

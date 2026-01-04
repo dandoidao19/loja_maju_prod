@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import FormularioCompra from './FormularioCompra'
 import ListaCompras from './ListaCompras'
-import FiltroLancamentos from './FiltroLancamentos'
+import FiltroLoja from './FiltroLoja'
 import { GeradorPDF, obterConfigLogos } from '@/lib/gerador-pdf-utils'
 
 interface Compra {
@@ -307,7 +307,7 @@ export default function PaginaCompras() {
   return (
     <div className="space-y-4">
       {/* Filtros - Corrigido: removido centrosCusto */}
-      <FiltroLancamentos
+      <FiltroLoja
         filtroDataInicio={filtroDataInicio}
         setFiltroDataInicio={setFiltroDataInicio}
         filtroDataFim={filtroDataFim}
