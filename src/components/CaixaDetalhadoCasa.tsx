@@ -2,7 +2,13 @@
 
 import { supabase } from '@/lib/supabase'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { getDataAtualBrasil, formatarDataParaExibicao } from '@/lib/dateUtils'
+import {
+  getDataAtualBrasil,
+  formatarDataParaExibicao,
+  normalizeDate,
+  gerarIntervaloDatas,
+  calcularDataNDias,
+} from '@/lib/dateUtils'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
 
 interface DiaCaixa {
@@ -44,38 +50,6 @@ export default function CaixaDetalhadoCasa() {
       offset += pageSize
     }
     return all
-  }, [])
-
-  const normalizeDate = useCallback((d?: string) => {
-    if (!d) return ''
-    if (d.includes('T')) return d.split('T')[0]
-    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10)
-    const dt = new Date(d)
-    if (isNaN(dt.getTime())) return d
-    return dt.toISOString().slice(0, 10)
-  }, [])
-
-  const calcularDataNDias = useCallback((dataBase: string, dias: number) => {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      timeZone: 'America/Sao_Paulo'
-    })
-    const [ano, mes, dia] = dataBase.split('-').map(Number)
-    const data = new Date(ano, mes - 1, dia + dias)
-    return formatter.format(data)
-  }, [])
-
-  const gerarIntervaloDatas = useCallback((inicio: string, fim: string) => {
-    const lista: string[] = []
-    let atual = new Date(inicio + 'T00:00:00')
-    const fimDate = new Date(fim + 'T00:00:00')
-    while (atual <= fimDate) {
-      lista.push(atual.toISOString().slice(0, 10))
-      atual.setDate(atual.getDate() + 1)
-    }
-    return lista
   }, [])
 
   const buildCumulativeSeries = useCallback((entriesRaw: Array<any>, desiredEnd?: string) => {
@@ -123,7 +97,7 @@ export default function CaixaDetalhadoCasa() {
       })
     })
     return { series, minDate, maxDate }
-  }, [normalizeDate, gerarIntervaloDatas])
+  }, [])
 
   useEffect(() => {
     const hoje = new Date()
@@ -329,7 +303,7 @@ export default function CaixaDetalhadoCasa() {
       setCarregando(false)
       carregandoRef.current = false
     }
-  }, [mostrandoMes, mostrandoHistorico, mesFiltro, calcularDataNDias, fetchAll, normalizeDate, buildCumulativeSeries, caixaPrevisto])
+  }, [mostrandoMes, mostrandoHistorico, mesFiltro, fetchAll, buildCumulativeSeries, caixaPrevisto])
 
   useEffect(() => {
     calcularHoje()
