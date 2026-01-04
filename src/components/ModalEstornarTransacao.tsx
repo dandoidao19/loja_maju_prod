@@ -12,7 +12,7 @@ interface ModalEstornarTransacaoProps {
     descricao: string
     valor: number
     numero_transacao: number
-    status_pagamento: string
+    status_pagamento: string | null
     cliente_fornecedor?: string
     origem_id?: string
     valor_pago?: number
