@@ -2,16 +2,21 @@
 
 import { useCaixaUniversal } from '@/hooks/useCaixaUniversal'
 import { calcularDataNDias, formatarDataParaExibicao, getDataAtualBrasil } from '@/lib/dateUtils'
-
 import { useState } from 'react'
 
 export default function CaixaGeral() {
-  const [filtro, setFiltro] = useState<'mes' | 'tudo' | '30dias'>('30dias')
-  const [mesFiltro, setMesFiltro] = useState('')
-
-  const { data, isLoading: carregando } = useCaixaUniversal(filtro, mesFiltro)
-
-  const { caixaRealGeral = 0, caixaPrevistoGeral = [], entradasHoje = 0, saidasHoje = 0 } = data || {}
+  const {
+    caixaRealGeral,
+    caixaPrevistoGeral,
+    entradasHoje,
+    saidasHoje,
+    carregando,
+    filtro,
+    setFiltro,
+    mesFiltro,
+    setMesFiltro,
+    ultimaAtualizacao
+  } = useCaixaUniversal()
 
   const handleMudarParaMes = () => setFiltro('mes')
   const handleVoltar30Dias = () => setFiltro('30dias')
@@ -98,7 +103,7 @@ export default function CaixaGeral() {
           <div className="overflow-x-auto">
             <div className="text-[10px] text-gray-500 mb-1">
               Mostrando {caixaPrevistoGeral.length} dias
-              <span className="ml-2 text-blue-500">✓ {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="ml-2 text-blue-500">✓ {new Date(ultimaAtualizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <table className="w-full text-xs border-collapse">
               <thead>

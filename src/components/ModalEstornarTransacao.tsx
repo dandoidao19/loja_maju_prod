@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
 
@@ -30,61 +29,84 @@ export default function ModalEstornarTransacao({
   onClose, 
   onEstornoRealizado 
 }: ModalEstornarTransacaoProps) {
+  const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const { atualizarCaixaReal } = useDadosFinanceiros()
-  const queryClient = useQueryClient()
 
-  const estornarTransacaoMutation = useMutation({
-    mutationFn: async () => {
-      if (!transacao) throw new Error("Transação não encontrada");
+  const handleEstornar = async () => {
+    if (!transacao) return
 
-      const tabela = transacao.tipo === 'entrada' ? 'vendas' : 'compras';
+    setLoading(true)
+    setErro('')
+
+    try {
+      const tabela = transacao.tipo === 'entrada' ? 'vendas' : 'compras'
       
-      const { error: errorTransacao } = await supabase.from(tabela).update({ status_pagamento: 'pendente' }).eq('id', transacao.id);
-      if (errorTransacao) throw new Error(`Erro ao estornar ${tabela}: ${errorTransacao.message}`);
+      console.log(`🔄 Processando estorno da ${tabela} ID: ${transacao.id}`)
 
+      // 1. ESTORNAR TRANSAÇÃO PRINCIPAL (VENDA/COMPRA)
+      const { error: errorTransacao } = await supabase
+        .from(tabela)
+        .update({ status_pagamento: 'pendente' })
+        .eq('id', transacao.id)
+
+      if (errorTransacao) {
+        console.error('❌ Erro ao estornar transação principal:', errorTransacao)
+        throw new Error(`Erro ao estornar ${tabela}: ${errorTransacao.message}`)
+      }
+
+      console.log('✅ Transação principal estornada com sucesso')
+
+      // 2. ESTORNAR TRANSAÇÕES LOJA (LIMPAR dados de pagamento)
       const { data: transacoesLoja, error: erroBusca } = await supabase
         .from('transacoes_loja')
-        .select('id')
+        .select('id, valor_pago, juros_descontos, data_pagamento')
         .ilike('descricao', `%${transacao.cliente_fornecedor || transacao.descricao}%`)
         .eq('tipo', transacao.tipo)
-        .eq('status_pagamento', 'pago');
+        .eq('status_pagamento', 'pago')
       
-      if (erroBusca) console.error('❌ Erro ao buscar transações da loja:', erroBusca);
-      else if (transacoesLoja && transacoesLoja.length > 0) {
-        const transacoesIds = transacoesLoja.map(t => t.id);
+      if (erroBusca) {
+        console.error('❌ Erro ao buscar transações da loja:', erroBusca)
+      } else if (transacoesLoja && transacoesLoja.length > 0) {
+        const transacoesIds = transacoesLoja.map(t => t.id)
+        console.log(`📋 Encontradas ${transacoesIds.length} transações para estornar`)
+
+        // ✅ LIMPAR COMPLETAMENTE dados de pagamento
         const { error: errorTransacoesLoja } = await supabase
           .from('transacoes_loja')
           .update({ 
             status_pagamento: 'pendente',
-            data_pagamento: null,
-            valor_pago: null,
-            juros_descontos: null
+            data_pagamento: null,           // ✅ LIMPAR DATA DE PAGAMENTO
+            valor_pago: null,               // ✅ LIMPAR VALOR PAGO
+            juros_descontos: null          // ✅ LIMPAR JUROS/DESCONTOS
           })
-          .in('id', transacoesIds);
-        if (errorTransacoesLoja) throw new Error(`Erro ao limpar dados de pagamento: ${errorTransacoesLoja.message}`);
+          .in('id', transacoesIds)
+
+        if (errorTransacoesLoja) {
+          console.error('❌ Erro ao estornar transações da loja:', errorTransacoesLoja)
+          throw new Error(`Erro ao limpar dados de pagamento: ${errorTransacoesLoja.message}`)
+        } else {
+          console.log(`✅ ${transacoesIds.length} transações da loja estornadas (dados limpos)`)
+        }
+      } else {
+        console.log('ℹ️ Nenhuma transação da loja encontrada para estornar')
       }
-      await atualizarCaixaReal('loja');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transacoes_loja'] });
-      queryClient.invalidateQueries({ queryKey: ['vendas'] });
-      queryClient.invalidateQueries({ queryKey: ['compras'] });
-      alert(`✅ Estorno da ${transacao?.tipo === 'entrada' ? 'venda' : 'compra'} #${transacao?.numero_transacao} realizado com sucesso!`);
-      onEstornoRealizado();
-      onClose();
-    },
-    onError: (error) => {
-      setErro(error.message);
+
+      // 3. ATUALIZAR CAIXA
+      await atualizarCaixaReal('loja')
+
+      console.log('✅ Estorno realizado com sucesso!')
+      alert(`✅ Estorno da ${transacao.tipo === 'entrada' ? 'venda' : 'compra'} #${transacao.numero_transacao} realizado com sucesso!`)
+
+      onEstornoRealizado()
+      onClose()
+    } catch (error) {
+      console.error('❌ Erro ao processar estorno:', error)
+      setErro(error instanceof Error ? error.message : 'Erro ao processar estorno. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
-  });
-
-  const { isPending: loading } = estornarTransacaoMutation;
-
-  const handleEstornar = () => {
-    setErro('');
-    estornarTransacaoMutation.mutate();
-  };
+  }
 
   if (!aberto || !transacao) return null
 

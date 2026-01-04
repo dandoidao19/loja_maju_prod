@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataParaExibicao, getDataAtualBrasil } from '@/lib/dateUtils'
-import FiltroLoja from './FiltroLoja'
+import FiltrosLancamentos from './FiltrosLancamentos'
 import CaixaDetalhadoLoja from './CaixaDetalhadoLoja'
 import ModalPagarTransacao from './ModalPagarTransacao'
 import ModalEstornarTransacao from './ModalEstornarTransacao'
@@ -54,7 +54,7 @@ export default function TelaInicialLoja() {
   const [modalPagarTransacao, setModalPagarTransacao] = useState<{ aberto: boolean, transacao: any | null }>({ aberto: false, transacao: null })
   const [modalEstornarTransacao, setModalEstornarTransacao] = useState<{ aberto: boolean, transacao: any | null }>({ aberto: false, transacao: null })
 
-  const { dados, atualizarCaixaReal } = useDadosFinanceiros()
+  const { atualizarCaixaReal } = useDadosFinanceiros()
 
   // Helpers locais para cálculo de datas
   const addDias = useCallback((dataStr: string, dias: number) => {
@@ -193,18 +193,6 @@ export default function TelaInicialLoja() {
       const dataFim = new Date(fim + 'T23:59:59')
       return data >= dataInicio && data <= dataFim
     } catch (error) {
-      return false
-    }
-  }, [])
-
-  const estaNoMesAtual = useCallback((dataString: string) => {
-    try {
-      if (!dataString) return false
-      const data = new Date(dataString + 'T12:00:00')
-      const hoje = new Date()
-      if (isNaN(data.getTime())) return false
-      return data.getFullYear() === hoje.getFullYear() && data.getMonth() === hoje.getMonth()
-    } catch {
       return false
     }
   }, [])
@@ -380,7 +368,7 @@ export default function TelaInicialLoja() {
 
   return (
     <div className="space-y-3">
-      <FiltroLoja
+      <FiltrosLancamentos
         filtroDataInicio={filtroDataInicio}
         setFiltroDataInicio={setFiltroDataInicio}
         filtroDataFim={filtroDataFim}

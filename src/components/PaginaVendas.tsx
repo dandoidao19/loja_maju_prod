@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import FormularioVenda from './FormularioVenda'
 import ListaVendas from './ListaVendas'
-import FiltroLoja from './FiltroLoja'
+import FiltrosLancamentos from './FiltrosLancamentos'
 import { GeradorPDF, obterConfigLogos } from '@/lib/gerador-pdf-utils'
 import type { Venda as TipoVenda } from '@/types'
 
@@ -201,7 +201,7 @@ export default function PaginaVendas() {
 
   return (
     <div className="space-y-4">
-      <FiltroLoja
+      <FiltrosLancamentos
         filtroDataInicio={filtroDataInicio}
         setFiltroDataInicio={setFiltroDataInicio}
         filtroDataFim={filtroDataFim}

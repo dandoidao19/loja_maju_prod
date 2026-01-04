@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { getDataAtualBrasil, prepararDataParaInsert } from '@/lib/dateUtils'
 import SeletorProduto from './SeletorProduto'
@@ -64,114 +63,17 @@ export default function FormularioCompra({ onCompraAdicionada }: FormularioCompr
     },
   ])
   const [categorias, setCategorias] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+
   const [quantidadeParcelas, setQuantidadeParcelas] = useState(1)
   const [prazoParcelas, setPrazoParcelas] = useState('mensal')
   const [statusPagamento, setStatusPagamento] = useState('pendente')
   const [dataVencimento, setDataVencimento] = useState(getDataAtualBrasil())
-  const queryClient = useQueryClient()
-
-  const addCompraMutation = useMutation({
-    mutationFn: async () => {
-      // Logic from handleSubmit goes here
-      if (!fornecedor.trim()) throw new Error('Fornecedor é obrigatório');
-      for (const item of itens) {
-        if (!item.descricao.trim()) throw new Error('Todos os itens devem ter descrição');
-        if (item.quantidade <= 0) throw new Error('Quantidade deve ser maior que 0');
-        if (item.preco_custo <= 0) throw new Error('Preço de custo deve ser maior que 0');
-        if (item.preco_venda <= 0) throw new Error('Preço de venda deve ser maior que 0');
-      }
-
-      const { data: numeroTransacao } = await supabase.rpc('obter_proximo_numero_transacao');
-      const dataCompraPrepara = prepararDataParaInsert(dataCompra);
-      const dataVencimentoPrepara = prepararDataParaInsert(dataVencimento);
-
-      const dadosCompra = {
-        numero_transacao: numeroTransacao,
-        data_compra: dataCompraPrepara,
-        fornecedor,
-        total: calcularTotal(),
-        quantidade_itens: itens.length,
-        forma_pagamento: 'dinheiro',
-        status_pagamento: statusPagamento,
-        quantidade_parcelas: quantidadeParcelas,
-        prazoparcelas: prazoParcelas,
-      };
-
-      const { data: compraData, error: erroCompra } = await supabase.from('compras').insert(dadosCompra).select().single();
-      if (erroCompra) throw erroCompra;
-
-      await criarTransacoesParceladas(compraData.id, calcularTotal(), fornecedor, dataVencimentoPrepara, quantidadeParcelas, prazoParcelas, numeroTransacao);
-
-      for (const item of itens) {
-        let produtoId = item.produto_id;
-        if (!produtoId) {
-          const { data: novoProduto, error: erroNovoProduto } = await supabase.from('produtos').insert({
-            codigo: `${item.categoria.substring(0, 1).toUpperCase()}${Math.floor(Math.random() * 10000)}`,
-            descricao: item.descricao,
-            quantidade: item.quantidade,
-            preco_custo: item.preco_custo,
-            valor_repasse: item.preco_custo * 1.3,
-            preco_venda: item.preco_venda,
-            categoria: item.categoria,
-            data_ultima_compra: dataCompraPrepara,
-          }).select().single();
-          if (erroNovoProduto) throw erroNovoProduto;
-          produtoId = novoProduto.id;
-        } else {
-          const { data: produtoAtual } = await supabase.from('produtos').select('quantidade').eq('id', produtoId).single();
-          if (produtoAtual) {
-            const { error: erroUpdate } = await supabase.from('produtos').update({
-              quantidade: produtoAtual.quantidade + item.quantidade,
-              preco_custo: item.preco_custo,
-              valor_repasse: item.preco_custo * 1.3,
-              preco_venda: item.preco_venda,
-              categoria: item.categoria,
-              data_ultima_compra: dataCompraPrepara,
-            }).eq('id', produtoId);
-            if (erroUpdate) throw erroUpdate;
-          }
-        }
-        await supabase.from('itens_compra').insert({
-          compra_id: compraData.id,
-          produto_id: produtoId,
-          descricao: item.descricao,
-          quantidade: item.quantidade,
-          categoria: item.categoria,
-          preco_custo: item.preco_custo,
-          preco_venda: item.preco_venda,
-        });
-        await supabase.from('movimentacoes_estoque').insert({
-          produto_id: produtoId,
-          tipo: 'entrada',
-          quantidade: item.quantidade,
-          observacao: `Compra de ${item.descricao} de ${fornecedor}`,
-          data: new Date().toISOString(),
-        });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['compras'] });
-      queryClient.invalidateQueries({ queryKey: ['transacoes_loja'] });
-      setDataCompra(getDataAtualBrasil());
-      setFornecedor('');
-      setItens([{ id: Date.now().toString(), produto_id: null, descricao: '', quantidade: 1, categoria: categorias[0]?.nome || '', preco_custo: 0, preco_venda: 0, minimizado: false, isNovoCadastro: false }]);
-      setQuantidadeParcelas(1);
-      setPrazoParcelas('mensal');
-      setStatusPagamento('pendente');
-      setDataVencimento(getDataAtualBrasil());
-      onCompraAdicionada();
-    },
-    onError: (err) => {
-      setErro(err.message);
-    },
-  });
-
-  const { isPending: loading } = addCompraMutation;
 
   useEffect(() => {
-    carregarCategorias();
-  }, []);
+    carregarCategorias()
+  }, [])
 
   const carregarCategorias = async () => {
     try {
@@ -384,11 +286,316 @@ export default function FormularioCompra({ onCompraAdicionada }: FormularioCompr
     console.log('✅ Transações criadas com sucesso')
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErro('');
-    addCompraMutation.mutate();
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErro('')
+    setLoading(true)
+
+    try {
+      if (!fornecedor.trim()) {
+        throw new Error('Fornecedor é obrigatório')
+      }
+
+      for (const item of itens) {
+        if (!item.descricao.trim()) {
+          throw new Error('Todos os itens devem ter descrição')
+        }
+        if (item.quantidade <= 0) {
+          throw new Error('Quantidade deve ser maior que 0')
+        }
+        if (item.preco_custo <= 0) {
+          throw new Error('Preço de custo deve ser maior que 0')
+        }
+        if (item.preco_venda <= 0) {
+          throw new Error('Preço de venda deve ser maior que 0')
+        }
+      }
+
+      const { data: numeroTransacao } = await supabase
+        .rpc('obter_proximo_numero_transacao')
+
+      const dataCompraPrepara = prepararDataParaInsert(dataCompra)
+      const dataVencimentoPrepara = prepararDataParaInsert(dataVencimento)
+
+      console.log('📋 Dados da compra:')
+      console.log('📅 Data da compra:', dataCompraPrepara)
+      console.log('📅 Data de vencimento:', dataVencimentoPrepara)
+      console.log('💰 Total:', calcularTotal())
+      console.log('📊 Parcelas:', quantidadeParcelas)
+      console.log('📅 Prazo:', prazoParcelas)
+
+      let dadosCompra: any = {
+        numero_transacao: numeroTransacao,
+        data_compra: dataCompraPrepara,
+        fornecedor,
+        total: calcularTotal(),
+        quantidade_itens: itens.length,
+        forma_pagamento: 'dinheiro',
+        status_pagamento: statusPagamento,
+        quantidade_parcelas: quantidadeParcelas,
+        prazoparcelas: prazoParcelas,
+      }
+
+      const { data: compraData, error: erroCompra } = await supabase
+        .from('compras')
+        .insert(dadosCompra)
+        .select()
+        .single()
+
+      if (erroCompra) {
+        if (erroCompra.message.includes('data_vencimento') || erroCompra.code === '42703') {
+          const { data: compraData2, error: erroCompra2 } = await supabase
+            .from('compras')
+            .insert({
+              numero_transacao: numeroTransacao,
+              data_compra: dataCompraPrepara,
+              fornecedor,
+              total: calcularTotal(),
+              quantidade_itens: itens.length,
+              forma_pagamento: 'dinheiro',
+              status_pagamento: statusPagamento,
+              quantidade_parcelas: quantidadeParcelas,
+              prazoparcelas: prazoParcelas,
+            })
+            .select()
+            .single()
+
+          if (erroCompra2) {
+            throw erroCompra2
+          }
+
+          console.log('🔄 Criando transações parceladas...')
+          await criarTransacoesParceladas(
+            compraData2.id,
+            calcularTotal(),
+            fornecedor,
+            dataVencimentoPrepara,
+            quantidadeParcelas,
+            prazoParcelas,
+            numeroTransacao
+          )
+
+          for (const item of itens) {
+            let produtoId = item.produto_id
+
+            if (!produtoId) {
+              const { data: novoProduto, error: erroNovoProduto } = await supabase
+                .from('produtos')
+                .insert({
+                  codigo: `${item.categoria.substring(0, 1).toUpperCase()}${Math.floor(Math.random() * 10000)}`,
+                  descricao: item.descricao,
+                  quantidade: item.quantidade,
+                  preco_custo: item.preco_custo,
+                  valor_repasse: item.preco_custo * 1.3,
+                  preco_venda: item.preco_venda,
+                  categoria: item.categoria,
+                  data_ultima_compra: dataCompraPrepara,
+                })
+                .select()
+                .single()
+
+              if (erroNovoProduto) {
+                throw erroNovoProduto
+              }
+              produtoId = novoProduto.id
+            } else {
+              const { data: produtoAtual } = await supabase
+                .from('produtos')
+                .select('quantidade')
+                .eq('id', produtoId)
+                .single()
+
+              if (produtoAtual) {
+                const { error: erroUpdate } = await supabase
+                  .from('produtos')
+                  .update({
+                    quantidade: produtoAtual.quantidade + item.quantidade,
+                    preco_custo: item.preco_custo,
+                    valor_repasse: item.preco_custo * 1.3,
+                    preco_venda: item.preco_venda,
+                    categoria: item.categoria,
+                    data_ultima_compra: dataCompraPrepara,
+                  })
+                  .eq('id', produtoId)
+
+                if (erroUpdate) {
+                  throw erroUpdate
+                }
+              }
+            }
+
+            const { error: erroItem } = await supabase
+              .from('itens_compra')
+              .insert({
+                compra_id: compraData2.id,
+                produto_id: produtoId,
+                descricao: item.descricao,
+                quantidade: item.quantidade,
+                categoria: item.categoria,
+                preco_custo: item.preco_custo,
+                preco_venda: item.preco_venda,
+              })
+
+            if (erroItem) {
+              throw erroItem
+            }
+
+            await supabase
+              .from('movimentacoes_estoque')
+              .insert({
+                produto_id: produtoId,
+                tipo: 'entrada',
+                quantidade: item.quantidade,
+                observacao: `Compra de ${item.descricao} de ${fornecedor}`,
+                data: new Date().toISOString(),
+              })
+          }
+
+          // Resetar formulário após sucesso
+          setDataCompra(getDataAtualBrasil())
+          setFornecedor('')
+          setItens([
+            {
+              id: Date.now().toString(),
+              produto_id: null,
+              descricao: '',
+              quantidade: 1,
+              categoria: categorias[0]?.nome || '',
+              preco_custo: 0,
+              preco_venda: 0,
+              minimizado: false,
+              isNovoCadastro: false,
+            },
+          ])
+          setQuantidadeParcelas(1)
+          setPrazoParcelas('mensal')
+          setStatusPagamento('pendente')
+          setDataVencimento(getDataAtualBrasil())
+
+          onCompraAdicionada()
+          setLoading(false)
+          return
+        } else {
+          throw erroCompra
+        }
+      }
+
+      console.log('🔄 Criando transações parceladas...')
+      await criarTransacoesParceladas(
+        compraData.id,
+        calcularTotal(),
+        fornecedor,
+        dataVencimentoPrepara,
+        quantidadeParcelas,
+        prazoParcelas,
+        numeroTransacao
+      )
+
+      for (const item of itens) {
+        let produtoId = item.produto_id
+
+        if (!produtoId) {
+          const { data: novoProduto, error: erroNovoProduto } = await supabase
+            .from('produtos')
+            .insert({
+              codigo: `${item.categoria.substring(0, 1).toUpperCase()}${Math.floor(Math.random() * 10000)}`,
+              descricao: item.descricao,
+              quantidade: item.quantidade,
+              preco_custo: item.preco_custo,
+              valor_repasse: item.preco_custo * 1.3,
+              preco_venda: item.preco_venda,
+              categoria: item.categoria,
+              data_ultima_compra: dataCompraPrepara,
+            })
+            .select()
+            .single()
+
+          if (erroNovoProduto) {
+            throw erroNovoProduto
+          }
+          produtoId = novoProduto.id
+        } else {
+          const { data: produtoAtual } = await supabase
+            .from('produtos')
+            .select('quantidade')
+            .eq('id', produtoId)
+            .single()
+
+          if (produtoAtual) {
+            const { error: erroUpdate } = await supabase
+              .from('produtos')
+              .update({
+                quantidade: produtoAtual.quantidade + item.quantidade,
+                preco_custo: item.preco_custo,
+                valor_repasse: item.preco_custo * 1.3,
+                preco_venda: item.preco_venda,
+                categoria: item.categoria,
+                data_ultima_compra: dataCompraPrepara,
+              })
+              .eq('id', produtoId)
+
+            if (erroUpdate) {
+              throw erroUpdate
+            }
+          }
+        }
+
+        const { error: erroItem } = await supabase
+          .from('itens_compra')
+          .insert({
+            compra_id: compraData.id,
+            produto_id: produtoId,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            categoria: item.categoria,
+            preco_custo: item.preco_custo,
+            preco_venda: item.preco_venda,
+          })
+
+        if (erroItem) {
+          throw erroItem
+        }
+
+        await supabase
+          .from('movimentacoes_estoque')
+          .insert({
+            produto_id: produtoId,
+            tipo: 'entrada',
+            quantidade: item.quantidade,
+            observacao: `Compra de ${item.descricao} de ${fornecedor}`,
+            data: new Date().toISOString(),
+          })
+      }
+
+      // Resetar formulário após sucesso
+      setDataCompra(getDataAtualBrasil())
+      setFornecedor('')
+      setItens([
+        {
+          id: Date.now().toString(),
+          produto_id: null,
+          descricao: '',
+          quantidade: 1,
+          categoria: categorias[0]?.nome || '',
+          preco_custo: 0,
+          preco_venda: 0,
+          minimizado: false,
+          isNovoCadastro: false,
+        },
+      ])
+      setQuantidadeParcelas(1)
+      setPrazoParcelas('mensal')
+      setStatusPagamento('pendente')
+      setDataVencimento(getDataAtualBrasil())
+
+      onCompraAdicionada()
+    } catch (err) {
+      console.error('❌ Erro completo:', err)
+      setErro(err instanceof Error ? err.message : 'Erro ao registrar compra')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const itemAtivo = itens[itens.length - 1]
 

@@ -5,6 +5,7 @@
  * Não usa getDate local. Não depende do fuso do servidor.
  */
 export function getDataAtualBrasil(): string {
+  // Usando Intl.DateTimeFormat para garantir a data correta no fuso horário de São Paulo
   const formatter = new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',
     month: '2-digit',
@@ -12,28 +13,54 @@ export function getDataAtualBrasil(): string {
     timeZone: 'America/Sao_Paulo'
   });
   
+  // O formato 'en-CA' retorna YYYY-MM-DD, que é o formato ISO 8601
   const dataFormatada = formatter.format(new Date());
+
+  // console.log("getDataAtualBrasil():", {
+  //   resultado: dataFormatada
+  // });
 
   return dataFormatada;
 }
 
 /**
  * Prepara data para INSERT garantindo que o formato final seja YYYY-MM-DD.
+ * Se vier string YYYY-MM-DD, mantém. Se vier Date ou outras strings, converte para o formato.
+ *
+ * O Supabase/PostgreSQL deve receber a data no formato YYYY-MM-DD para colunas DATE.
  */
 export function prepararDataParaInsert(dataInput: string | Date): string {
+  // console.log("prepararDataParaInsert INPUT:", dataInput);
+
   if (!dataInput) {
-    return getDataAtualBrasil();
+    const hoje = getDataAtualBrasil();
+    // console.log("OUTPUT (vazio → hoje):", hoje);
+    return hoje;
   }
 
+  // Já no formato correto YYYY-MM-DD
   if (typeof dataInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dataInput)) {
+    // console.log("OUTPUT (já formatada):", dataInput);
     return dataInput;
   }
 
-  let dataObj = new Date(dataInput);
-  if (isNaN(dataObj.getTime())) {
-    throw new Error(`Data inválida: ${dataInput}`);
+  let dataObj: Date;
+
+  if (typeof dataInput === "string") {
+    // CORREÇÃO CRÍTICA: Para evitar que new Date('YYYY-MM-DD') seja interpretado como UTC meia-noite,
+    // o que causaria um deslocamento de -1 dia no Brasil (UTC-3), adicionamos um "T00:00:00"
+    // para forçar a interpretação como data local.
+    // No entanto, como a entrada deve ser YYYY-MM-DD, vamos apenas criar a data e usar o Intl.
+    dataObj = new Date(dataInput);
+    if (isNaN(dataObj.getTime())) {
+      throw new Error(`Data inválida: ${dataInput}`);
+    }
+  } else {
+    dataObj = dataInput;
   }
 
+  // Se a entrada for um objeto Date, precisamos garantir que a data YYYY-MM-DD
+  // seja a data no fuso horário do Brasil, e não a data UTC ou local do servidor.
   const formatter = new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',
     month: '2-digit',
@@ -41,17 +68,28 @@ export function prepararDataParaInsert(dataInput: string | Date): string {
     timeZone: 'America/Sao_Paulo'
   });
   
-  return formatter.format(dataObj);
+  const resultado = formatter.format(dataObj);
+
+  // console.log("OUTPUT final:", resultado);
+
+  return resultado;
 }
 
 /**
- * Formata uma data ISO (YYYY-MM-DD) para visualização no formato brasileiro DD/MM/YYYY.
+ * Formata uma data ISO (YYYY-MM-DD ou ISO completa) para visualização no formato brasileiro DD/MM/YYYY.
+ * Conversão feita com timezone real do Brasil.
  */
 export function formatarDataParaExibicao(dataISO: string): string {
   try {
     if (!dataISO) return "";
+
+    // CORREÇÃO CRÍTICA: Se a data for YYYY-MM-DD (como vem do Supabase DATE),
+    // new Date() a trata como UTC meia-noite, o que desloca a data em -1 dia no Brasil.
+    // Para corrigir, adicionamos um offset de tempo para que new Date() a trate como local.
     let dataParaConversao = dataISO;
     if (/^\d{4}-\d{2}-\d{2}$/.test(dataISO)) {
+        // Adiciona um horário que garanta que a data seja interpretada corretamente no fuso do Brasil.
+        // Ex: '2023-12-29T12:00:00'
         dataParaConversao = `${dataISO}T12:00:00`;
     }
     
@@ -65,7 +103,9 @@ export function formatarDataParaExibicao(dataISO: string): string {
       timeZone: 'America/Sao_Paulo'
     });
     
-    return formatter.format(data);
+    const resultado = formatter.format(data);
+
+    return resultado;
   } catch {
     return dataISO;
   }
@@ -86,9 +126,8 @@ export function getMesAtualParaInput(): string {
   return `${ano}-${mes}`;
 }
 
-/**
- * Normaliza uma string de data para o formato YYYY-MM-DD.
- */
+
+
 export const normalizeDate = (d?: string): string => {
   if (!d) return ''
   if (d.includes('T')) return d.split('T')[0]
@@ -98,12 +137,9 @@ export const normalizeDate = (d?: string): string => {
   return dt.toISOString().slice(0, 10)
 };
 
-/**
- * Gera um intervalo de datas entre uma data de início e fim.
- */
 export const gerarIntervaloDatas = (inicio: string, fim: string): string[] => {
   const lista: string[] = []
-  let atual = new Date(`${inicio}T00:00:00`)
+  const atual = new Date(`${inicio}T00:00:00`)
   const fimDate = new Date(`${fim}T00:00:00`)
   while (atual <= fimDate) {
     lista.push(atual.toISOString().slice(0, 10))
@@ -112,9 +148,6 @@ export const gerarIntervaloDatas = (inicio: string, fim: string): string[] => {
   return lista
 };
 
-/**
- * Calcula uma data N dias a partir de uma data base.
- */
 export const calcularDataNDias = (dataBase: string, dias: number): string => {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',
@@ -126,50 +159,3 @@ export const calcularDataNDias = (dataBase: string, dias: number): string => {
   const data = new Date(ano, mes - 1, dia + dias)
   return formatter.format(data)
 };
-
-export const buildCumulativeSeries = (entriesRaw: Array<any>, desiredEnd?: string) => {
-  if (!entriesRaw || entriesRaw.length === 0) return { series: [] as any[], minDate: '', maxDate: '' }
-
-  const uniq = new Map<string, any>()
-  entriesRaw.forEach((r: any) => {
-    const data = normalizeDate(r.data)
-    if (!data) return
-    const tipo = r.tipo || ''
-    const valor = Number(r.valor ?? r.total ?? 0) || 0
-    const idKey = r.id ?? r.uuid ?? null
-    const key = idKey ? String(idKey) : `${data}|${tipo}|${valor}`
-    if (!uniq.has(key)) uniq.set(key, { id: idKey, data, tipo, valor })
-  })
-
-  const uniqueEntries = Array.from(uniq.values())
-  if (uniqueEntries.length === 0) return { series: [] as any[], minDate: '', maxDate: '' }
-
-  const datas = uniqueEntries.map(e => e.data).filter(Boolean)
-  const minDate = datas.reduce((a, b) => (a < b ? a : b))
-  const maxDateEntries = datas.reduce((a, b) => (a > b ? a : b))
-  const maxDate = desiredEnd && desiredEnd > maxDateEntries ? desiredEnd : maxDateEntries
-
-  const agrup: Record<string, { receitas: number, despesas: number }> = {}
-  uniqueEntries.forEach((r: any) => {
-    const d = r.data
-    if (!agrup[d]) agrup[d] = { receitas: 0, despesas: 0 }
-    if (r.tipo === 'entrada') agrup[d].receitas += Number(r.valor) || 0
-    else agrup[d].despesas += Number(r.valor) || 0
-  })
-
-  const listaDatas = gerarIntervaloDatas(minDate, maxDate)
-  const series: any[] = []
-  let saldoAtual = 0
-  listaDatas.forEach(data => {
-    const valores = agrup[data] || { receitas: 0, despesas: 0 }
-    saldoAtual += (valores.receitas - valores.despesas)
-    series.push({
-      data,
-      data_formatada: formatarDataParaExibicao(data),
-      receitas: valores.receitas,
-      despesas: valores.despesas,
-      saldo_acumulado: saldoAtual
-    })
-  })
-  return { series, minDate, maxDate }
-}
