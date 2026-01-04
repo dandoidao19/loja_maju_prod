@@ -6,13 +6,11 @@ import PaginaEstoque from './PaginaEstoque'
 import PaginaCompras from './PaginaCompras'
 import PaginaVendas from './PaginaVendas'
 import ModuloCondicional from './ModuloCondicional'
-import { isDevFeaturesEnabled } from '@/lib/envUtils'
 
 type AbaLoja = 'financeiro' | 'estoque' | 'vendas' | 'compras' | 'condicional'
 
 export default function ModuloLoja() {
   const [abaAtiva, setAbaAtiva] = useState<AbaLoja>('financeiro')
-  const devFeaturesEnabled = isDevFeaturesEnabled()
 
   // Define as abas base (sempre visíveis)
   const abasBase: { id: AbaLoja; titulo: string; icone: string }[] = [
@@ -22,10 +20,8 @@ export default function ModuloLoja() {
     { id: 'compras', titulo: 'Compras', icone: '📥' },
   ]
 
-  // Adiciona aba Condicional apenas em desenvolvimento
-  const abas = devFeaturesEnabled 
-    ? [...abasBase, { id: 'condicional' as AbaLoja, titulo: 'Condicional', icone: '⚙️' }]
-    : abasBase
+  // Adiciona aba Condicional
+  const abas = [...abasBase, { id: 'condicional' as AbaLoja, titulo: 'Condicional', icone: '⚙️' }]
 
   const renderizarConteudo = () => {
     switch (abaAtiva) {
@@ -38,8 +34,7 @@ export default function ModuloLoja() {
       case 'compras':
         return <PaginaCompras />
       case 'condicional':
-        // Renderiza apenas se recursos de dev estiverem habilitados
-        return devFeaturesEnabled ? <ModuloCondicional /> : null
+        return <ModuloCondicional />
       default:
         return null
     }

@@ -14,9 +14,8 @@ import { isDevFeaturesEnabled } from '@/lib/envUtils'
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeSection, setActiveSection] = useState('casa') // Inicia em 'casa' para produção
+  const [activeSection, setActiveSection] = useState('dashboard') // Inicia em 'dashboard'
   const router = useRouter()
-  const devFeaturesEnabled = isDevFeaturesEnabled()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -53,13 +52,11 @@ export default function Dashboard() {
     { id: 'configuracoes', label: '⚙️ Configurações', icon: '⚙️', color: 'gray' }
   ]
 
-  // Adiciona Dashboard apenas em desenvolvimento
-  const menuItems = devFeaturesEnabled 
-    ? [
-        { id: 'dashboard', label: '📊 Dashboard', icon: '📊', color: 'blue' },
-        ...menuItemsBase
-      ]
-    : menuItemsBase
+  // Adiciona Dashboard
+  const menuItems = [
+    { id: 'dashboard', label: '📊 Dashboard', icon: '📊', color: 'blue' },
+    ...menuItemsBase
+  ]
 
   const getButtonStyle = (id: string, color: string) => {
     const isActive = activeSection === id
@@ -138,7 +135,7 @@ export default function Dashboard() {
           </div>
 
           {/* Conteúdo Dinâmico */}
-          {devFeaturesEnabled && activeSection === 'dashboard' && (
+          {activeSection === 'dashboard' && (
             <div className="w-full md:w-1/3">
               <DashboardComponent />
             </div>
