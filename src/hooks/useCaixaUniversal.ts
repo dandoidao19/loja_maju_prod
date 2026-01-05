@@ -65,27 +65,74 @@ export const useCaixaUniversal = (month: string): CaixaData => {
       const startDate = startOfMonth(new Date(year, monthIndex - 1));
       const endDate = endOfMonth(startDate);
 
-      const { data: saldoData, error: saldoError } = await supabase
-        .from('caixas')
-        .select('valor') // CORREÇÃO: Usando a coluna 'valor'
-        .lte('data', format(startDate, 'yyyy-MM-dd'))
-        .order('data', { ascending: false })
-        .limit(1);
+      // --- CÁLCULO CORRETO DO SALDO INICIAL ---
+      const dataLimite = format(startDate, 'yyyy-MM-dd');
 
-      if (saldoError) throw saldoError;
-      const saldoInicial = saldoData?.[0]?.valor || 0;
+      // 1. Saldo inicial da CASA (lancamentos_financeiros)
+      const { data: lancamentosCasa, error: casaError } = await supabase
+        .from('lancamentos_financeiros')
+        .select('valor, tipo')
+        .lt('data_lancamento', dataLimite);
 
-      const { data: lancamentos, error: lancamentosError } = await supabase
+      if (casaError) throw casaError;
+
+      const saldoCasa = lancamentosCasa.reduce((acc, l) => {
+        return acc + (l.tipo === 'entrada' ? l.valor : -l.valor);
+      }, 0);
+
+      // 2. Saldo inicial da LOJA (transacoes_loja)
+      const { data: transacoesLoja, error: lojaError } = await supabase
+        .from('transacoes_loja')
+        .select('valor_parcela')
+        .eq('status_pagamento', 'pago')
+        .lt('data_pagamento', dataLimite);
+
+      if (lojaError) throw lojaError;
+
+      const saldoLoja = transacoesLoja.reduce((acc, t) => acc + t.valor_parcela, 0);
+
+      // 3. Saldo inicial total
+      const saldoInicial = saldoCasa + saldoLoja;
+      // --- FIM DO CÁLCULO ---
+
+      // --- BUSCA DAS MOVIMENTAÇÕES DO MÊS ---
+      const dataInicioMes = format(startDate, 'yyyy-MM-dd');
+      const dataFimMes = format(endDate, 'yyyy-MM-dd');
+
+      // 1. Lançamentos da CASA
+      const { data: lancamentosCasaMes, error: lancamentosError } = await supabase
         .from('lancamentos_financeiros')
         .select('id, data_lancamento, valor, tipo')
-        .gte('data_lancamento', format(startDate, 'yyyy-MM-dd'))
-        .lte('data_lancamento', format(endDate, 'yyyy-MM-dd'));
+        .gte('data_lancamento', dataInicioMes)
+        .lte('data_lancamento', dataFimMes);
 
       if (lancamentosError) throw lancamentosError;
 
-      const { series, categories } = buildCumulativeSeries(lancamentos || [], startDate, endDate, saldoInicial);
-      const entradas = lancamentos?.filter(l => l.tipo === 'entrada').reduce((acc, l) => acc + l.valor, 0) || 0;
-      const saidas = lancamentos?.filter(l => l.tipo === 'saida').reduce((acc, l) => acc + l.valor, 0) || 0;
+      // 2. Transações da LOJA (apenas entradas pagas)
+      const { data: transacoesLojaMes, error: transacoesError } = await supabase
+        .from('transacoes_loja')
+        .select('id, data_pagamento, valor_parcela')
+        .eq('status_pagamento', 'pago')
+        .gte('data_pagamento', dataInicioMes)
+        .lte('data_pagamento', dataFimMes);
+
+      if (transacoesError) throw transacoesError;
+
+      // 3. Unificar e formatar dados para o gráfico
+      const lancamentosLojaFormatados: Lancamento[] = (transacoesLojaMes || []).map(t => ({
+        id: t.id,
+        data_lancamento: t.data_pagamento,
+        valor: t.valor_parcela,
+        tipo: 'entrada' as 'entrada',
+      }));
+
+      const todosLancamentos = [...(lancamentosCasaMes || []), ...lancamentosLojaFormatados]
+        .sort((a, b) => parseISO(a.data_lancamento).getTime() - parseISO(b.data_lancamento).getTime());
+      // --- FIM DA BUSCA ---
+
+      const { series, categories } = buildCumulativeSeries(todosLancamentos, startDate, endDate, saldoInicial);
+      const entradas = todosLancamentos.filter(l => l.tipo === 'entrada').reduce((acc, l) => acc + l.valor, 0) || 0;
+      const saidas = todosLancamentos.filter(l => l.tipo === 'saida').reduce((acc, l) => acc + l.valor, 0) || 0;
       const saldoFinal = saldoInicial + entradas - saidas;
 
       setData({
