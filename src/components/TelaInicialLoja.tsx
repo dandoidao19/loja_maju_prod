@@ -39,8 +39,6 @@ export default function TelaInicialLoja() {
   const [transacoes, setTransacoes] = useState<Transacao[]>(cacheGlobalTransacoes)
   const [transacoesFiltradas, setTransacoesFiltradas] = useState<Transacao[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([])
-  const [selectionMode, setSelectionMode] = useState(false)
   const [verTodas, setVerTodas] = useState(false)
   
   const ultimaBuscaRef = useRef<number>(cacheGlobalUltimaAtualizacao)
@@ -54,21 +52,10 @@ export default function TelaInicialLoja() {
   const [filtroTipo, setFiltroTipo] = useState('todos')
   const [filtroStatus, setFiltroStatus] = useState('todos')
 
-  const [modalPagarTransacao, setModalPagarTransacao] = useState<{ aberto: boolean, transacao: Transacao | null }>({ aberto: false, transacao: null })
-  const [modalEstornarTransacao, setModalEstornarTransacao] = useState<{ aberto: boolean, transacao: Transacao | null }>({ aberto: false, transacao: null })
-  const [isRenegotiationModalOpen, setRenegotiationModalOpen] = useState(false)
+  const [modalPagarTransacao, setModalPagarTransacao] = useState<{ aberto: boolean, transacao: any | null }>({ aberto: false, transacao: null })
+  const [modalEstornarTransacao, setModalEstornarTransacao] = useState<{ aberto: boolean, transacao: any | null }>({ aberto: false, transacao: null })
 
   const { atualizarCaixaReal } = useDadosFinanceiros()
-
-  const openRenegotiationModal = () => setRenegotiationModalOpen(true);
-
-  const handleSelectionChange = (transactionId: string) => {
-    setSelectedTransactions(prev =>
-      prev.includes(transactionId)
-        ? prev.filter(id => id !== transactionId)
-        : [...prev, transactionId]
-    );
-  };
 
   // Helpers locais para cálculo de datas
   const addDias = useCallback((dataStr: string, dias: number) => {
@@ -422,20 +409,12 @@ export default function TelaInicialLoja() {
                 {tituloLista}
                 {transacoesFiltradas.length !== transacoes.length && ` (${transacoesFiltradas.length} de ${transacoes.length} filtradas)`}
               </h3>
-              <div>
-                <button
-                  onClick={() => setSelectionMode(!selectionMode)}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors mr-2 ${selectionMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                >
-                  {selectionMode ? 'Cancelar Seleção' : 'Selecionar para Renegociar'}
-                </button>
-                <button
-                  onClick={() => setVerTodas(!verTodas)}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${verTodas ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                >
-                  {verTodas ? 'Mês Atual' : 'Ver Todas'}
-                </button>
-              </div>
+              <button
+                onClick={() => setVerTodas(!verTodas)}
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${verTodas ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                {verTodas ? 'Mês Atual' : 'Ver Todas'}
+              </button>
             </div>
 
             {loading && transacoes.length === 0 ? (
@@ -447,7 +426,6 @@ export default function TelaInicialLoja() {
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-gray-100 border-b border-gray-300">
-                      {selectionMode && <th className="px-1 py-0.5 text-center font-semibold text-gray-700" style={{ fontSize: '10px' }}>Selecionar</th>}
                       <th className="px-1 py-0.5 text-left font-semibold text-gray-700" style={{ fontSize: '10px' }}>Vencimento</th>
                       <th className="px-1 py-0.5 text-left font-semibold text-gray-700" style={{ fontSize: '10px' }}>Pagamento</th>
                       <th className="px-1 py-0.5 text-left font-semibold text-gray-700" style={{ fontSize: '10px' }}>Transação</th>
@@ -466,20 +444,8 @@ export default function TelaInicialLoja() {
                       const valorExibicao = getValorExibicao(transacao)
                       const diferenca = getDiferenca(transacao)
                       const temPag = temPagamento(transacao)
-                      const isSelectable = transacao.status_pagamento === 'pendente';
                       return (
                         <tr key={`${transacao.id}-${index}`} className="border-b border-gray-200 hover:bg-gray-50">
-                          {selectionMode && (
-                            <td className="px-1 py-0.5 text-center">
-                              <input
-                                type="checkbox"
-                                checked={selectedTransactions.includes(transacao.id)}
-                                onChange={() => handleSelectionChange(transacao.id)}
-                                disabled={!isSelectable}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-200"
-                              />
-                            </td>
-                          )}
                           <td className="px-1 py-0.5 text-gray-700" style={{ fontSize: '11px' }}>{formatarDataParaExibicao(transacao.data)}</td>
                           <td className="px-1 py-0.5 text-gray-700" style={{ fontSize: '11px' }}>{transacao.data_pagamento ? <span className="text-green-600 font-medium">{formatarDataParaExibicao(transacao.data_pagamento)}</span> : <span className="text-gray-400">—</span>}</td>
                           <td className="px-1 py-0.5 text-gray-700" style={{ fontSize: '11px' }}>#{transacao.numero_transacao || 'N/A'}</td>
@@ -516,32 +482,6 @@ export default function TelaInicialLoja() {
 
       <ModalPagarTransacao aberto={modalPagarTransacao.aberto} transacao={modalPagarTransacao.transacao} onClose={() => setModalPagarTransacao({ aberto: false, transacao: null })} onPagamentoRealizado={handlePagamentoRealizado} />
       <ModalEstornarTransacao aberto={modalEstornarTransacao.aberto} transacao={modalEstornarTransacao.transacao} onClose={() => setModalEstornarTransacao({ aberto: false, transacao: null })} onEstornoRealizado={handleEstornoRealizado} />
-
-      {selectionMode && selectedTransactions.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-3">
-          <div className="container mx-auto flex justify-between items-center">
-            <div>
-              <span className="font-bold">{selectedTransactions.length}</span> transação(ões) selecionada(s)
-            </div>
-            <button
-              onClick={openRenegotiationModal}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-            >
-              Renegociar
-            </button>
-          </div>
-        </div>
-      )}
-
-      <ModalRenegociacao
-        isOpen={isRenegotiationModalOpen}
-        onClose={() => setRenegotiationModalOpen(false)}
-        transacoesSelecionadas={transacoes.filter(t => selectedTransactions.includes(t.id))}
-        onConfirm={() => {
-          setRenegotiationModalOpen(false);
-          buscarTransacoes(true);
-        }}
-      />
     </div>
   )
 }

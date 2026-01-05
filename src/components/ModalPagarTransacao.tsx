@@ -13,7 +13,7 @@ interface ModalPagarTransacaoProps {
     descricao: string
     valor: number
     numero_transacao: number
-    status_pagamento: string | null
+    status_pagamento: string
     cliente_fornecedor?: string
     origem_id?: string
     data?: string
