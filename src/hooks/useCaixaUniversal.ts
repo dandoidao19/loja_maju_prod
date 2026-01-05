@@ -79,6 +79,7 @@ export const useCaixaUniversal = (month: string): CaixaData => {
       const saldoCasa = lancamentosCasa.reduce((acc, l) => {
         return acc + (l.tipo === 'entrada' ? l.valor : -l.valor);
       }, 0);
+      console.log(`[Debug Caixa] Saldo Inicial Casa (até ${dataLimite}):`, saldoCasa);
 
       // 2. Saldo inicial da LOJA (transacoes_loja)
       const { data: transacoesLoja, error: lojaError } = await supabase
@@ -90,9 +91,12 @@ export const useCaixaUniversal = (month: string): CaixaData => {
       if (lojaError) throw lojaError;
 
       const saldoLoja = transacoesLoja.reduce((acc, t) => acc + t.valor_parcela, 0);
+      console.log(`[Debug Caixa] Saldo Inicial Loja (até ${dataLimite}):`, saldoLoja);
+
 
       // 3. Saldo inicial total
       const saldoInicial = saldoCasa + saldoLoja;
+      console.log(`[Debug Caixa] Saldo Inicial TOTAL:`, saldoInicial);
       // --- FIM DO CÁLCULO ---
 
       // --- BUSCA DAS MOVIMENTAÇÕES DO MÊS ---
