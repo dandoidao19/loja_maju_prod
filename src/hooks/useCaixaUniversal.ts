@@ -66,7 +66,7 @@ export const useCaixaUniversal = (month: string): CaixaData => {
       const endDate = endOfMonth(startDate);
 
       const { data: saldoData, error: saldoError } = await supabase
-        .from('saldos_caixas')
+        .from('caixas') // CORREÇÃO: Usando a tabela 'caixas'
         .select('saldo')
         .lte('data', format(startDate, 'yyyy-MM-dd'))
         .order('data', { ascending: false })
