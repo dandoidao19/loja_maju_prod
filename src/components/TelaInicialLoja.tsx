@@ -78,7 +78,7 @@ export default function TelaInicialLoja() {
   }, [])
 
   // Processar transações
-  const processarTransacoes = useCallback(async (transacoesLoja: Transacao[]) => {
+  const processarTransacoes = useCallback(async (transacoesLoja: any[]) => {
     if (!transacoesLoja || transacoesLoja.length === 0) return []
 
     return transacoesLoja.map(trans => {
@@ -102,7 +102,7 @@ export default function TelaInicialLoja() {
         data_original: trans.data_original || trans.data,
         tipo: trans.tipo,
         descricao: descricaoLimpa || trans.descricao,
-        valor: trans.valor,
+        valor: trans.total,
         valor_pago: trans.valor_pago,
         juros_descontos: trans.juros_descontos,
         status_pagamento: trans.status_pagamento || 'pendente',
