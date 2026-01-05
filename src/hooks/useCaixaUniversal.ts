@@ -66,14 +66,14 @@ export const useCaixaUniversal = (month: string): CaixaData => {
       const endDate = endOfMonth(startDate);
 
       const { data: saldoData, error: saldoError } = await supabase
-        .from('caixas') // CORREÇÃO: Usando a tabela 'caixas'
-        .select('saldo')
+        .from('caixas')
+        .select('valor') // CORREÇÃO: Usando a coluna 'valor'
         .lte('data', format(startDate, 'yyyy-MM-dd'))
         .order('data', { ascending: false })
         .limit(1);
 
       if (saldoError) throw saldoError;
-      const saldoInicial = saldoData?.[0]?.saldo || 0;
+      const saldoInicial = saldoData?.[0]?.valor || 0;
 
       const { data: lancamentos, error: lancamentosError } = await supabase
         .from('lancamentos_financeiros')
