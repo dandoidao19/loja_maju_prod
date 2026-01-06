@@ -15,8 +15,8 @@ type Filtro = '30dias' | 'mes' | 'tudo'
 
 export function useCaixaUniversal() {
   const [caixaRealGeral, setCaixaRealGeral] = useState(0)
-  const [realLojaDebug, setRealLojaDebug] = useState(0); // Para depuração
-  const [realCasaDebug, setRealCasaDebug] = useState(0); // Para depuração
+  const [caixaRealLoja, setCaixaRealLoja] = useState(0)
+  const [caixaRealCasa, setCaixaRealCasa] = useState(0)
   const [caixaPrevistoGeral, setCaixaPrevistoGeral] = useState<DiaCaixa[]>([])
   const [entradasHoje, setEntradasHoje] = useState(0)
   const [saidasHoje, setSaidasHoje] = useState(0)
@@ -64,8 +64,6 @@ export function useCaixaUniversal() {
             fetchAll('lancamentos_financeiros', 'tipo, valor, data_prevista, data_lancamento, status', [{ column: 'caixa_id', value: '69bebc06-f495-4fed-b0b1-beafb50c017b' }], 'data_prevista')
         ]);
 
-        console.log('--- DADOS BRUTOS CASA (useCaixaUniversal) ---', lancamentosCasa); // DEBUG
-
         // 2. Calcular o Caixa Real Geral (valor total, independente de data)
         const realLoja = transacoesLoja
             .filter(t => t.status_pagamento === 'pago')
@@ -75,8 +73,8 @@ export function useCaixaUniversal() {
             .filter(l => l.status === 'realizado')
             .reduce((acc, l) => acc + (l.tipo === 'entrada' ? l.valor : -l.valor), 0);
 
-        setRealLojaDebug(realLoja);
-        setRealCasaDebug(realCasa);
+        setCaixaRealLoja(realLoja);
+        setCaixaRealCasa(realCasa);
         setCaixaRealGeral(realLoja + realCasa);
 
         // 3. Calcular o saldo inicial para a projeção (tudo que foi pago/realizado ATÉ ONTEM)
@@ -143,7 +141,13 @@ export function useCaixaUniversal() {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        setCaixaPrevistoGeral(series);
+        let displaySeries = series;
+        if (filtro === '30dias') {
+            const dataLimite = calcularDataNDias(hoje, 29);
+            displaySeries = series.filter(dia => dia.data <= dataLimite);
+        }
+
+        setCaixaPrevistoGeral(displaySeries);
 
     } catch (error) {
         console.error("Erro ao buscar dados do caixa universal:", error);
@@ -163,8 +167,8 @@ export function useCaixaUniversal() {
 
   return {
     caixaRealGeral,
-    realLojaDebug,
-    realCasaDebug,
+    caixaRealLoja,
+    caixaRealCasa,
     caixaPrevistoGeral,
     entradasHoje,
     saidasHoje,

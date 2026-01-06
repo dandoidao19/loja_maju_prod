@@ -7,8 +7,8 @@ import { useState } from 'react'
 export default function CaixaGeral() {
   const {
     caixaRealGeral,
-    realLojaDebug,
-    realCasaDebug,
+    caixaRealLoja,
+    caixaRealCasa,
     caixaPrevistoGeral,
     entradasHoje,
     saidasHoje,
@@ -68,18 +68,19 @@ export default function CaixaGeral() {
 
       <div className={`rounded p-1.5 ${caixaRealGeral < 0 ? 'bg-red-500' : 'bg-blue-50 border border-blue-200'}`} style={{ minWidth: 0 }}>
         <div>
-          <p style={caixaTituloStyle} className={`${caixaRealGeral < 0 ? 'text-red-100' : 'text-gray-600'}`}>Caixa Real:</p>
+          <div style={{...caixaTituloStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}} className={`${caixaRealGeral < 0 ? 'text-red-100' : 'text-gray-600'}`}>
+            <span>Caixa Real:</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>
+              <span className={caixaRealLoja >= 0 ? 'text-green-700' : 'text-red-700'}>L: {formatarMoeda(caixaRealLoja)}</span>
+              <span className="mx-2">|</span>
+              <span className={caixaRealCasa >= 0 ? 'text-green-700' : 'text-red-700'}>C: {formatarMoeda(caixaRealCasa)}</span>
+            </span>
+          </div>
           <p style={caixaValorStyle} className={`${caixaRealGeral < 0 ? 'text-white' : 'text-blue-600'}`}>{formatarMoeda(caixaRealGeral)}</p>
           <div style={caixaSubContainerStyle} className="mt-0.5">
             <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
               <span className="text-green-600">↑ {formatarMoedaCompacta(entradasHoje)}</span>
               <span className="text-red-600">↓ {formatarMoedaCompacta(saidasHoje)}</span>
-            </div>
-            {/* DEBUG */}
-            <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '4px' }}>
-                <span>Loja: {formatarMoeda(realLojaDebug ?? 0)}</span>
-                <span className="mx-1">|</span>
-                <span>Casa: {formatarMoeda(realCasaDebug ?? 0)}</span>
             </div>
           </div>
         </div>
