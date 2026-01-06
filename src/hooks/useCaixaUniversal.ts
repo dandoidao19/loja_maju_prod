@@ -15,6 +15,8 @@ type Filtro = '30dias' | 'mes' | 'tudo'
 
 export function useCaixaUniversal() {
   const [caixaRealGeral, setCaixaRealGeral] = useState(0)
+  const [realLojaDebug, setRealLojaDebug] = useState(0); // Para depuração
+  const [realCasaDebug, setRealCasaDebug] = useState(0); // Para depuração
   const [caixaPrevistoGeral, setCaixaPrevistoGeral] = useState<DiaCaixa[]>([])
   const [entradasHoje, setEntradasHoje] = useState(0)
   const [saidasHoje, setSaidasHoje] = useState(0)
@@ -35,10 +37,10 @@ export function useCaixaUniversal() {
     const dataInicialFixa = '2025-09-30';
 
     try {
-      // 1. Buscar todas as transações de ambos os contextos
+      // 1. Buscar transações de ambos os contextos com os filtros corretos
       const [transacoesLojaRes, lancamentosCasaRes] = await Promise.all([
         supabase.from('transacoes_loja').select('tipo, total, valor_pago, data, data_pagamento, status_pagamento'),
-        supabase.from('lancamentos_financeiros').select('tipo, valor, data_prevista, data_lancamento, status')
+        supabase.from('lancamentos_financeiros').select('tipo, valor, data_prevista, data_lancamento, status').eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b')
       ]);
 
       if (transacoesLojaRes.error) throw transacoesLojaRes.error;
@@ -47,23 +49,23 @@ export function useCaixaUniversal() {
       const transacoesLoja = transacoesLojaRes.data || [];
       const lancamentosCasa = lancamentosCasaRes.data || [];
 
-      // 2. Calcular o Caixa Real Geral (Soma simples e correta)
-      let realLoja = 0;
-      transacoesLoja.forEach(t => {
-        if (t.status_pagamento === 'pago') {
+      // 2. Calcular o Caixa Real Geral
+      const realLoja = transacoesLoja
+        .filter(t => t.status_pagamento === 'pago')
+        .reduce((acc, t) => {
           const valor = t.valor_pago ?? t.total;
-          realLoja += t.tipo === 'entrada' ? valor : -valor;
-        }
-      });
-      let realCasa = 0;
-      lancamentosCasa.forEach(l => {
-        if (l.status === 'realizado') {
-          realCasa += l.tipo === 'entrada' ? l.valor : -l.valor;
-        }
-      });
+          return acc + (t.tipo === 'entrada' ? valor : -valor);
+        }, 0);
+
+      const realCasa = lancamentosCasa
+        .filter(l => l.status === 'realizado')
+        .reduce((acc, l) => acc + (l.tipo === 'entrada' ? l.valor : -l.valor), 0);
+
+      setRealLojaDebug(realLoja);
+      setRealCasaDebug(realCasa);
       setCaixaRealGeral(realLoja + realCasa);
 
-      // 3. Unificar TODAS as movimentações para o fluxo de caixa
+      // 3. Unificar TODAS as movimentações (previstas e realizadas) para o fluxo de caixa
       const allEntries: { data: string; valor: number }[] = [];
       transacoesLoja.forEach(t => {
         const data = t.status_pagamento === 'pago' ? t.data_pagamento : t.data;
@@ -143,6 +145,8 @@ export function useCaixaUniversal() {
 
   return {
     caixaRealGeral,
+    realLojaDebug,
+    realCasaDebug,
     caixaPrevistoGeral,
     entradasHoje,
     saidasHoje,

@@ -7,6 +7,8 @@ import { useState } from 'react'
 export default function CaixaGeral() {
   const {
     caixaRealGeral,
+    realLojaDebug,
+    realCasaDebug,
     caixaPrevistoGeral,
     entradasHoje,
     saidasHoje,
@@ -72,6 +74,12 @@ export default function CaixaGeral() {
             <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
               <span className="text-green-600">↑ {formatarMoedaCompacta(entradasHoje)}</span>
               <span className="text-red-600">↓ {formatarMoedaCompacta(saidasHoje)}</span>
+            </div>
+            {/* DEBUG */}
+            <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '4px' }}>
+                <span>Loja: {formatarMoeda(realLojaDebug ?? 0)}</span>
+                <span className="mx-1">|</span>
+                <span>Casa: {formatarMoeda(realCasaDebug ?? 0)}</span>
             </div>
           </div>
         </div>
