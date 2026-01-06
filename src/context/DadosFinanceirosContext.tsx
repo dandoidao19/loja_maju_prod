@@ -227,6 +227,7 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
         
         if (lancamentos && lancamentos.length > 0) {
           console.log(`🏠 CASA - ${lancamentos.length} lançamentos realizados encontrados`)
+          console.log('--- DADOS BRUTOS CASA (Contexto) ---', lancamentos); // DEBUG
           
           lancamentos.forEach((lanc: any) => {
             if (lanc.tipo === 'entrada') {

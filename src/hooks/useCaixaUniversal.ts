@@ -49,6 +49,8 @@ export function useCaixaUniversal() {
         const transacoesLoja = transacoesLojaRes.data || [];
         const lancamentosCasa = lancamentosCasaRes.data || [];
 
+        console.log('--- DADOS BRUTOS CASA (useCaixaUniversal) ---', lancamentosCasa); // DEBUG
+
         // 2. Calcular o Caixa Real Geral (valor total, independente de data)
         const realLoja = transacoesLoja
             .filter(t => t.status_pagamento === 'pago')
