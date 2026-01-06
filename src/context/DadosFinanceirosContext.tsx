@@ -183,6 +183,7 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
           .from('transacoes_loja')
           .select('tipo, total, valor_pago')
           .eq('status_pagamento', 'pago')
+          .not('data_pagamento', 'is', null)
           .lte('data_pagamento', hoje)
         
         if (error) {
