@@ -208,9 +208,8 @@ export default function CaixaLojaDetalhado({
         }
       } else {
         if (mostrando30Dias) {
-          const ontem = calcularDataNDias(hoje, -1)
-          displayStart = ontem
-          displayEnd = calcularDataNDias(ontem, 29)
+          displayStart = hoje
+          displayEnd = calcularDataNDias(hoje, 29)
         } else if (mostrandoMes && mesFiltro) {
           const [ano, mes] = mesFiltro.split('-')
           displayStart = `${ano}-${mes}-01`
@@ -289,9 +288,8 @@ export default function CaixaLojaDetalhado({
     if (mostrandoHistorico) return 'TUDO'
     if (mostrando30Dias) {
       const hoje = getDataAtualBrasil()
-      const ontem = calcularDataNDias(hoje, -1)
-      const fim30Dias = calcularDataNDias(ontem, 29)
-      return `30 Dias: ${formatarDataParaExibicao(ontem)} a ${formatarDataParaExibicao(fim30Dias)}`
+        const fim30Dias = calcularDataNDias(hoje, 29)
+        return `30 Dias: ${formatarDataParaExibicao(hoje)} a ${formatarDataParaExibicao(fim30Dias)}`
     } else if (mostrandoMes && mesFiltro) {
       const [ano, mes] = mesFiltro.split('-')
       return `Mês: ${mes}/${ano}`
