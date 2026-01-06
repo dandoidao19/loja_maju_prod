@@ -24,7 +24,7 @@ export function useCaixaUniversal() {
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState(0)
 
   const calcularDataNDias = useCallback((dataBase: string, dias: number) => {
-    const data = new Date(`${dataBase}T12:00:00`) // Use timezone to avoid UTC issues
+    const data = new Date(`${dataBase}T12:00:00`)
     data.setDate(data.getDate() + dias)
     return data.toISOString().split('T')[0]
   }, [])
@@ -32,9 +32,10 @@ export function useCaixaUniversal() {
   const fetchData = useCallback(async () => {
     setCarregando(true)
     const hoje = getDataAtualBrasil()
+    const ontem = calcularDataNDias(hoje, -1)
 
     try {
-      // 1. Buscar TODOS os dados, de todos os tempos
+      // 1. Buscar TODOS os dados relevantes de todos os tempos
       const [transacoesLojaRes, lancamentosCasaRes] = await Promise.all([
         supabase.from('transacoes_loja').select('tipo, total, valor_pago, data, data_pagamento, status_pagamento'),
         supabase.from('lancamentos_financeiros').select('tipo, valor, data_prevista, data_lancamento, status')
@@ -46,95 +47,101 @@ export function useCaixaUniversal() {
       const transacoesLoja = transacoesLojaRes.data || []
       const lancamentosCasa = lancamentosCasaRes.data || []
 
-      // --- Início do Novo Cálculo ---
+      // 2. Calcular o Caixa Real Geral (Saldo Histórico Correto)
+      let real = 0
+      transacoesLoja.forEach(t => {
+        if (t.status_pagamento === 'pago') {
+          const valor = t.valor_pago ?? t.total
+          real += t.tipo === 'entrada' ? valor : -valor
+        }
+      })
+      lancamentosCasa.forEach(l => {
+        if (l.status === 'realizado') {
+          real += l.tipo === 'entrada' ? l.valor : -l.valor
+        }
+      })
+      setCaixaRealGeral(real)
 
-      // 2. Unificar todas as transações em um formato único
+      // 3. Unificar todas as transações (passadas e futuras) para o fluxo de caixa
       const allEntries: { data: string; valor: number }[] = []
-
       transacoesLoja.forEach(t => {
         const data = t.status_pagamento === 'pago' ? t.data_pagamento : t.data
         if (!data) return
         const valor = t.valor_pago ?? t.total
-        allEntries.push({
-          data: data.split('T')[0],
-          valor: t.tipo === 'entrada' ? valor : -valor,
-        })
+        allEntries.push({ data: data.split('T')[0], valor: t.tipo === 'entrada' ? valor : -valor })
       })
-
       lancamentosCasa.forEach(l => {
         const data = l.status === 'realizado' ? l.data_lancamento : l.data_prevista
         if (!data) return
-        allEntries.push({
-          data: data.split('T')[0],
-          valor: l.tipo === 'entrada' ? l.valor : -l.valor,
-        })
+        allEntries.push({ data: data.split('T')[0], valor: l.tipo === 'entrada' ? l.valor : -l.valor })
       })
 
-      // 3. Agrupar por data
+      // 4. Agrupar por data
       const groupedByDate = allEntries.reduce((acc, curr) => {
         if (!acc[curr.data]) {
           acc[curr.data] = { receitas: 0, despesas: 0 }
         }
-        if (curr.valor > 0) {
-          acc[curr.data].receitas += curr.valor
-        } else {
-          acc[curr.data].despesas += Math.abs(curr.valor)
-        }
+        if (curr.valor > 0) acc[curr.data].receitas += curr.valor
+        else acc[curr.data].despesas += Math.abs(curr.valor)
         return acc
       }, {} as Record<string, { receitas: number; despesas: number }>)
 
-      const sortedDates = Object.keys(groupedByDate).sort()
-      if (sortedDates.length === 0) {
-          setCarregando(false)
-          setCaixaPrevistoGeral([])
-          setCaixaRealGeral(0)
-          setEntradasHoje(0)
-          setSaidasHoje(0)
-          return
-      }
-
-      // 4. Criar a série histórica mestre ("cálculo infinito")
-      const masterSeries: DiaCaixa[] = []
-      let saldoAcumulado = 0
-      const firstDate = new Date(`${sortedDates[0]}T12:00:00`)
-      const lastDate = new Date(`${sortedDates[sortedDates.length - 1]}T12:00:00`)
-
-      for (let d = firstDate; d <= lastDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0]
-        const { receitas, despesas } = groupedByDate[dateStr] || { receitas: 0, despesas: 0 }
-        saldoAcumulado += receitas - despesas
-        masterSeries.push({
-          data: dateStr,
-          data_formatada: formatarDataParaExibicao(dateStr),
-          receitas,
-          despesas,
-          saldo_acumulado: saldoAcumulado,
-        })
-      }
-
-      // 5. Calcular o Caixa Real com base no novo cálculo
-      const caixaRealCalculado = masterSeries
-        .filter(d => d.data <= hoje)
-        .pop()?.saldo_acumulado || 0
-      setCaixaRealGeral(caixaRealCalculado)
+      // 5. Calcular o saldo acumulado até ontem (ponto de partida para o previsto)
+      const saldoAteOntem = Object.keys(groupedByDate)
+        .filter(date => date <= ontem)
+        .reduce((saldo, date) => {
+          const { receitas, despesas } = groupedByDate[date]
+          return saldo + receitas - despesas
+        }, 0)
 
       // 6. Calcular Entradas e Saídas de Hoje
-      const hojeData = groupedByDate[hoje] || {receitas: 0, despesas: 0};
-      setEntradasHoje(hojeData.receitas);
-      setSaidasHoje(hojeData.despesas);
+      const hojeData = groupedByDate[hoje] || { receitas: 0, despesas: 0 }
+      setEntradasHoje(hojeData.receitas)
+      setSaidasHoje(hojeData.despesas)
 
-      // 7. Filtrar a série para exibição
+      // 7. Determinar o período de exibição do fluxo de caixa
       let startDateStr: string;
+      let endDateStr: string;
+
+      const sortedDates = Object.keys(groupedByDate).sort()
+      const lastDateStr = sortedDates[sortedDates.length - 1] || hoje
+
       if (filtro === '30dias') {
-        startDateStr = hoje;
+        startDateStr = hoje
+        endDateStr = calcularDataNDias(hoje, 29)
       } else if (filtro === 'mes' && mesFiltro) {
-        startDateStr = `${mesFiltro}-01`;
+        startDateStr = `${mesFiltro}-01`
+        endDateStr = new Date(Number(mesFiltro.split('-')[0]), Number(mesFiltro.split('-')[1]), 0).toISOString().split('T')[0]
       } else { // 'tudo'
-        startDateStr = masterSeries[0]?.data || hoje;
+        startDateStr = hoje
+        endDateStr = lastDateStr > calcularDataNDias(hoje, 365) ? lastDateStr : calcularDataNDias(hoje, 365) // Mostra tudo, com pelo menos 1 ano pra frente
       }
 
-      const displaySeries = masterSeries.filter(d => d.data >= startDateStr);
-      setCaixaPrevistoGeral(displaySeries);
+      // 8. Construir a série de caixa previsto para o período
+      const series: DiaCaixa[] = []
+      let saldoAcumulado = saldoAteOntem
+      const currentDate = new Date(`${startDateStr}T12:00:00`)
+      const finalDate = new Date(`${endDateStr}T12:00:00`)
+
+      while (currentDate <= finalDate) {
+        const dateStr = currentDate.toISOString().split('T')[0]
+        const { receitas, despesas } = groupedByDate[dateStr] || { receitas: 0, despesas: 0 }
+        saldoAcumulado += receitas - despesas
+
+        // Adiciona à série apenas se houver movimentação ou se estiver dentro do range visível
+        if(receitas > 0 || despesas > 0 || dateStr >= hoje) {
+            series.push({
+              data: dateStr,
+              data_formatada: formatarDataParaExibicao(dateStr),
+              receitas,
+              despesas,
+              saldo_acumulado: saldoAcumulado,
+            })
+        }
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+
+      setCaixaPrevistoGeral(series)
 
     } catch (error) {
       console.error("Erro ao buscar dados do caixa universal:", error)
@@ -143,7 +150,7 @@ export function useCaixaUniversal() {
       setCarregando(false)
       setUltimaAtualizacao(Date.now())
     }
-  }, [filtro, mesFiltro])
+  }, [filtro, mesFiltro, calcularDataNDias])
 
   useEffect(() => {
     if (!mesFiltro) {
@@ -165,12 +172,11 @@ export function useCaixaUniversal() {
     setMesFiltro,
     ultimaAtualizacao,
     getTituloPrevisao: () => {
-      if (filtro === 'tudo') return 'TUDO'
+      if (filtro === 'tudo') return 'Histórico e Futuro'
       if (filtro === '30dias') {
         const hoje = getDataAtualBrasil()
-        const ontem = calcularDataNDias(hoje, 0)
-        const fim30Dias = calcularDataNDias(ontem, 29)
-        return `30 Dias: ${formatarDataParaExibicao(ontem)} a ${formatarDataParaExibicao(fim30Dias)}`
+        const fim30Dias = calcularDataNDias(hoje, 29)
+        return `Próximos 30 Dias: ${formatarDataParaExibicao(hoje)} a ${formatarDataParaExibicao(fim30Dias)}`
       }
       if (filtro === 'mes' && mesFiltro) {
         const [ano, mes] = mesFiltro.split('-')
