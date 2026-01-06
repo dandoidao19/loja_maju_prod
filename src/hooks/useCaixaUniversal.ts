@@ -31,6 +31,27 @@ export function useCaixaUniversal() {
     return data.toISOString().split('T')[0]
   }, [])
 
+  const fetchAll = useCallback(async (fromTable: string, selectFields = '*', filters: { column: string, value: any }[] = [], orderColumn = 'id') => {
+    const pageSize = 1000;
+    let offset = 0;
+    const all: any[] = [];
+    while (true) {
+        let query = supabase.from(fromTable).select(selectFields);
+        filters.forEach(filter => {
+            query = query.eq(filter.column, filter.value);
+        });
+        query = query.order(orderColumn, { ascending: true }).range(offset, offset + pageSize - 1);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        offset += pageSize;
+    }
+    return all;
+  }, []);
+
   const fetchData = useCallback(async () => {
     setCarregando(true);
     const hoje = getDataAtualBrasil();
@@ -38,16 +59,10 @@ export function useCaixaUniversal() {
 
     try {
         // 1. Buscar todas as transações de ambos os contextos
-        const [transacoesLojaRes, lancamentosCasaRes] = await Promise.all([
-            supabase.from('transacoes_loja').select('tipo, total, valor_pago, data, data_pagamento, status_pagamento'),
-            supabase.from('lancamentos_financeiros').select('tipo, valor, data_prevista, data_lancamento, status').eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b')
+        const [transacoesLoja, lancamentosCasa] = await Promise.all([
+            fetchAll('transacoes_loja', 'tipo, total, valor_pago, data, data_pagamento, status_pagamento', [], 'data'),
+            fetchAll('lancamentos_financeiros', 'tipo, valor, data_prevista, data_lancamento, status', [{ column: 'caixa_id', value: '69bebc06-f495-4fed-b0b1-beafb50c017b' }], 'data_prevista')
         ]);
-
-        if (transacoesLojaRes.error) throw transacoesLojaRes.error;
-        if (lancamentosCasaRes.error) throw lancamentosCasaRes.error;
-
-        const transacoesLoja = transacoesLojaRes.data || [];
-        const lancamentosCasa = lancamentosCasaRes.data || [];
 
         console.log('--- DADOS BRUTOS CASA (useCaixaUniversal) ---', lancamentosCasa); // DEBUG
 
