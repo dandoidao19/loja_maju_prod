@@ -38,7 +38,7 @@ const CACHE_TEMPO_VIDA_COMPRAS = 30000 // 30 segundos
 let cacheGlobalTransacoes: any[] = []
 let cacheGlobalUltimaAtualizacao: number = 0
 
-export default function PaginaCompras() {
+export default function LojaPaginaCompras() {
   const [compras, setCompras] = useState<Compra[]>(cacheGlobalCompras)
   const [comprasFiltradas, setComprasFiltradas] = useState<Compra[]>([])
   const [loading, setLoading] = useState(cacheGlobalCompras.length === 0)

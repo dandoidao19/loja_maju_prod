@@ -1,16 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import TelaInicialLoja from './TelaInicialLoja'
-import PaginaEstoque from './PaginaEstoque'
-import PaginaCompras from './PaginaCompras'
-import PaginaVendas from './PaginaVendas'
+import LojaPaginaFinanceiro from './LojaPaginaFinanceiro'
+import LojaPaginaEstoque from './LojaPaginaEstoque'
+import LojaPaginaCompras from './LojaPaginaCompras'
+import LojaPaginaVendas from './LojaPaginaVendas'
 import ModuloCondicional from './ModuloCondicional'
 import { isDevFeaturesEnabled } from '@/lib/envUtils'
 
 type AbaLoja = 'financeiro' | 'estoque' | 'vendas' | 'compras' | 'condicional'
 
-export default function ModuloLoja() {
+export default function LojaModulo() {
   const [abaAtiva, setAbaAtiva] = useState<AbaLoja>('financeiro')
   const devFeaturesEnabled = isDevFeaturesEnabled()
 
@@ -30,13 +30,13 @@ export default function ModuloLoja() {
   const renderizarConteudo = () => {
     switch (abaAtiva) {
       case 'financeiro':
-        return <TelaInicialLoja />
+        return <LojaPaginaFinanceiro />
       case 'estoque':
-        return <PaginaEstoque />
+        return <LojaPaginaEstoque />
       case 'vendas':
-        return <PaginaVendas />
+        return <LojaPaginaVendas />
       case 'compras':
-        return <PaginaCompras />
+        return <LojaPaginaCompras />
       case 'condicional':
         // Renderiza apenas se recursos de dev estiverem habilitados
         return devFeaturesEnabled ? <ModuloCondicional /> : null

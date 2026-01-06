@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataParaExibicao, getDataAtualBrasil } from '@/lib/dateUtils'
 import FiltrosLancamentos from './FiltrosLancamentos'
-import VisualizacaoCaixaDetalhada from './VisualizacaoCaixaDetalhada'
+import CaixaLojaDetalhado from './CaixaLojaDetalhado'
 import ModalPagarTransacao from './ModalPagarTransacao'
 import ModalEstornarTransacao from './ModalEstornarTransacao'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
@@ -34,7 +34,7 @@ let cacheGlobalTransacoes: Transacao[] = []
 let cacheGlobalUltimaAtualizacao: number = 0
 const CACHE_TEMPO_VIDA = 30000
 
-export default function TelaInicialLoja() {
+export default function LojaPaginaFinanceiro() {
   const [transacoes, setTransacoes] = useState<Transacao[]>(cacheGlobalTransacoes)
   const [transacoesFiltradas, setTransacoesFiltradas] = useState<Transacao[]>([])
   const [loading, setLoading] = useState(false)
@@ -407,7 +407,7 @@ export default function TelaInicialLoja() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 items-start">
         <div className="lg:col-span-1">
-          <VisualizacaoCaixaDetalhada contexto="loja" onToggleTudo={(mostrarTudo) => {
+          <CaixaLojaDetalhado onToggleTudo={(mostrarTudo) => {
             // Quando painel esquerdo solicitar "mostrar tudo", ativamos Ver Todas no painel direito
             setVerTodas(Boolean(mostrarTudo))
           }} />

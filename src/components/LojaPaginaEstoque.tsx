@@ -24,7 +24,7 @@ interface Produto {
 type OrdenacaoTipo = 'descricao' | 'preco_venda' | 'categoria' | 'quantidade'
 type OrdenacaoDirecao = 'asc' | 'desc'
 
-export default function PaginaEstoque() {
+export default function LojaPaginaEstoque() {
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [produtosFiltrados, setProdutosFiltrados] = useState<Produto[]>([])
   const [produtosCondicionais, setProdutosCondicionais] = useState<Produto[]>([])

@@ -12,7 +12,7 @@ import type { Venda as TipoVenda } from '@/types'
 let cacheGlobalTransacoes: any[] = []
 let cacheGlobalUltimaAtualizacao: number = 0
 
-export default function PaginaVendas() {
+export default function LojaPaginaVendas() {
   const [vendas, setVendas] = useState<TipoVenda[]>([])
   const [vendasFiltradas, setVendasFiltradas] = useState<TipoVenda[]>([])
   const [loading, setLoading] = useState(true)

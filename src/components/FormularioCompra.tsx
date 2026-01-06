@@ -324,7 +324,7 @@ export default function FormularioCompra({ onCompraAdicionada }: FormularioCompr
       console.log('📊 Parcelas:', quantidadeParcelas)
       console.log('📅 Prazo:', prazoParcelas)
 
-      let dadosCompra: any = {
+      const dadosCompra: any = {
         numero_transacao: numeroTransacao,
         data_compra: dataCompraPrepara,
         fornecedor,

@@ -4,12 +4,14 @@
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import ResumoCaixas from '@/components/ResumoCaixas'
-import ModuloCasa from '@/components/ModuloCasa'
-import ModuloConfiguracoes from '@/components/ModuloConfiguracoes'
-import ModuloLoja from '@/components/ModuloLoja'
+import dynamic from 'next/dynamic'
 import { DadosFinanceirosProvider } from '@/context/DadosFinanceirosContext'
 import { isDevFeaturesEnabled } from '@/lib/envUtils'
+
+const ResumoCaixas = dynamic(() => import('@/components/ResumoCaixas'), { ssr: false })
+const CasaModulo = dynamic(() => import('@/components/CasaModulo'), { ssr: false })
+const ModuloConfiguracoes = dynamic(() => import('@/components/ModuloConfiguracoes'), { ssr: false })
+const LojaModulo = dynamic(() => import('@/components/LojaModulo'), { ssr: false })
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
@@ -146,13 +148,13 @@ export default function Dashboard() {
           
           {activeSection === 'casa' && (
             <div>
-              <ModuloCasa />
+              <CasaModulo />
             </div>
           )}
 
           {activeSection === 'loja' && (
             <div>
-              <ModuloLoja />
+              <LojaModulo />
             </div>
           )}
 

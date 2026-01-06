@@ -125,7 +125,7 @@ export class GeradorPDF {
   private adicionarCabecalho() {
     const { nomeEmpresa, nomeSistema } = this.logoConfig
     
-    let yLogo = 10
+    const yLogo = 10
     
     if (this.logoConfig.logoEmpresa) {
       try {

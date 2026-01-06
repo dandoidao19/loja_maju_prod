@@ -5,7 +5,7 @@ import ModalPagarAvancado from './ModalPagarAvancado'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useDadosFinanceiros } from '@/context/DadosFinanceirosContext'
 import { getDataAtualBrasil, formatarDataParaExibicao } from '@/lib/dateUtils'
-import VisualizacaoCaixaDetalhada from './VisualizacaoCaixaDetalhada'
+import CaixaCasaDetalhado from './CaixaCasaDetalhado'
 import FiltrosCasa from './FiltrosCasa'
 import { GeradorPDFLancamentos } from '@/lib/gerador-pdf-lancamentos'
 
@@ -151,7 +151,7 @@ const validarFormulario = (form: FormLancamento): boolean => {
   return true;
 }
 
-export default function ModuloCasa() {
+export default function CasaModulo() {
   const { dados, recarregarLancamentos, atualizarCaixaReal, carregando: carregandoContexto } = useDadosFinanceiros()
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [loading, setLoading] = useState(false)
@@ -983,7 +983,7 @@ export default function ModuloCasa() {
 
       <div className="grid grid-cols-3 gap-1">
         <div className="col-span-1">
-          <VisualizacaoCaixaDetalhada contexto="casa" titulo="CAIXA CASA" />
+          <CaixaCasaDetalhado titulo="CAIXA CASA" />
         </div>
 
         <div className="col-span-2">

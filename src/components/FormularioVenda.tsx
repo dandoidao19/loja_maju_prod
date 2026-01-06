@@ -351,7 +351,7 @@ export default function FormularioVenda({ onVendaAdicionada }: FormularioVendaPr
       console.log('📊 Parcelas:', quantidadeParcelas)
       console.log('📅 Prazo:', prazoParcelas)
 
-      let dadosVenda: any = {
+      const dadosVenda: any = {
         numero_transacao: numeroTransacao,
         data_venda: dataVendaPrepara,
         cliente,

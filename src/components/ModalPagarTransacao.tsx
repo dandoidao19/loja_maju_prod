@@ -164,7 +164,7 @@ export default function ModalPagarTransacao({
       })
 
       // SEMPRE status 'pago', não permite 'parcial'
-      let statusPagamento = 'pago'
+      const statusPagamento = 'pago'
 
       if (transacao.origem_id) {
         const { error: errorTransacaoLoja } = await supabase
