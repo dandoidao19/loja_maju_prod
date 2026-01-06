@@ -76,7 +76,7 @@ export default function CaixaCasaDetalhado({
 
   const gerarIntervaloDatas = useCallback((inicio: string, fim: string) => {
     const lista: string[] = []
-    let atual = new Date(inicio + 'T00:00:00')
+    const atual = new Date(inicio + 'T00:00:00')
     const fimDate = new Date(fim + 'T00:00:00')
     while (atual <= fimDate) {
       lista.push(atual.toISOString().slice(0, 10))
