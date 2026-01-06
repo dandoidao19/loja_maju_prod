@@ -183,8 +183,6 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
           .from('transacoes_loja')
           .select('tipo, total, valor_pago')
           .eq('status_pagamento', 'pago')
-          .not('data_pagamento', 'is', null)
-          .lte('data_pagamento', hoje)
         
         if (error) {
           console.error(`❌ Erro ao buscar transações loja:`, error)
@@ -217,7 +215,6 @@ export function DadosFinanceirosProvider({ children }: { children: ReactNode }) 
           .select('valor, tipo, caixa_id')
           .eq('status', 'realizado')
           .eq('caixa_id', '69bebc06-f495-4fed-b0b1-beafb50c017b') // ID do caixa casa
-          .lte('data_lancamento', hoje)
         
         if (error) {
           console.error(`❌ Erro ao buscar lançamentos casa:`, error)
