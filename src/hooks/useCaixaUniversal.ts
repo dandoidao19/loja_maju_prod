@@ -35,7 +35,7 @@ export function useCaixaUniversal() {
     const ontem = calcularDataNDias(hoje, -1)
 
     try {
-      // 1. Buscar TODOS os dados relevantes de todos os tempos
+      // 1. Buscar todas as transações da Loja e Lançamentos da Casa
       const [transacoesLojaRes, lancamentosCasaRes] = await Promise.all([
         supabase.from('transacoes_loja').select('tipo, total, valor_pago, data, data_pagamento, status_pagamento'),
         supabase.from('lancamentos_financeiros').select('tipo, valor, data_prevista, data_lancamento, status')
@@ -47,105 +47,88 @@ export function useCaixaUniversal() {
       const transacoesLoja = transacoesLojaRes.data || []
       const lancamentosCasa = lancamentosCasaRes.data || []
 
-      // 2. Calcular o Caixa Real Geral (Saldo Histórico Correto)
-      let real = 0
+      // 2. Calcular o Caixa Real Geral (Soma histórica de tudo que foi pago/realizado)
+      let realLoja = 0
       transacoesLoja.forEach(t => {
         if (t.status_pagamento === 'pago') {
           const valor = t.valor_pago ?? t.total
-          real += t.tipo === 'entrada' ? valor : -valor
+          realLoja += t.tipo === 'entrada' ? valor : -valor
         }
       })
+      let realCasa = 0
       lancamentosCasa.forEach(l => {
         if (l.status === 'realizado') {
-          real += l.tipo === 'entrada' ? l.valor : -l.valor
+          realCasa += l.tipo === 'entrada' ? l.valor : -l.valor
         }
       })
-      setCaixaRealGeral(real)
+      setCaixaRealGeral(realLoja + realCasa)
 
-      // 3. Unificar todas as transações (passadas e futuras) para o fluxo de caixa
-      const allEntries: { data: string; valor: number }[] = []
+      // 3. Unificar todas as movimentações (realizadas e previstas) para o fluxo de caixa
+      const allEntries: { data: string; valor: number; status: string }[] = []
       transacoesLoja.forEach(t => {
         const data = t.status_pagamento === 'pago' ? t.data_pagamento : t.data
         if (!data) return
         const valor = t.valor_pago ?? t.total
-        allEntries.push({ data: data.split('T')[0], valor: t.tipo === 'entrada' ? valor : -valor })
+        allEntries.push({ data: data.split('T')[0], valor: t.tipo === 'entrada' ? valor : -valor, status: t.status_pagamento || 'pendente' })
       })
       lancamentosCasa.forEach(l => {
         const data = l.status === 'realizado' ? l.data_lancamento : l.data_prevista
         if (!data) return
-        allEntries.push({ data: data.split('T')[0], valor: l.tipo === 'entrada' ? l.valor : -l.valor })
+        allEntries.push({ data: data.split('T')[0], valor: l.tipo === 'entrada' ? l.valor : -l.valor, status: l.status })
       })
 
-      // 4. Agrupar por data
+      // 4. Agrupar movimentações por data
       const groupedByDate = allEntries.reduce((acc, curr) => {
         if (!acc[curr.data]) {
-          acc[curr.data] = { receitas: 0, despesas: 0 }
+          acc[curr.data] = { receitas: 0, despesas: 0, receitas_realizadas: 0, despesas_realizadas: 0 }
         }
         if (curr.valor > 0) acc[curr.data].receitas += curr.valor
         else acc[curr.data].despesas += Math.abs(curr.valor)
-        return acc
-      }, {} as Record<string, { receitas: number; despesas: number }>)
 
-      // 5. Calcular o saldo acumulado até ontem (ponto de partida para o previsto)
-      const saldoAteOntem = Object.keys(groupedByDate)
+        if (curr.status === 'pago' || curr.status === 'realizado') {
+            if (curr.valor > 0) acc[curr.data].receitas_realizadas += curr.valor
+            else acc[curr.data].despesas_realizadas += Math.abs(curr.valor)
+        }
+        return acc
+      }, {} as Record<string, { receitas: number; despesas: number; receitas_realizadas: number; despesas_realizadas: number }>)
+
+      // 5. Calcular o saldo inicial para o fluxo de caixa (tudo realizado/pago até ontem)
+      const saldoInicial = Object.keys(groupedByDate)
         .filter(date => date <= ontem)
         .reduce((saldo, date) => {
-          const { receitas, despesas } = groupedByDate[date]
-          return saldo + receitas - despesas
+          const { receitas_realizadas, despesas_realizadas } = groupedByDate[date]
+          return saldo + receitas_realizadas - despesas_realizadas
         }, 0)
 
-      // 6. Calcular Entradas e Saídas de Hoje
-      const hojeData = groupedByDate[hoje] || { receitas: 0, despesas: 0 }
-      setEntradasHoje(hojeData.receitas)
-      setSaidasHoje(hojeData.despesas)
+      // 6. Calcular Entradas e Saídas de Hoje (apenas o que foi realizado/pago)
+      const hojeData = groupedByDate[hoje] || { receitas_realizadas: 0, despesas_realizadas: 0 }
+      setEntradasHoje(hojeData.receitas_realizadas)
+      setSaidasHoje(hojeData.despesas_realizadas)
 
-      // 7. Determinar o período de exibição do fluxo de caixa
-      let startDateStr: string;
-      let endDateStr: string;
-
+      // 7. Construir a série de Caixa Previsto
       const sortedDates = Object.keys(groupedByDate).sort()
-      const lastDateStr = sortedDates[sortedDates.length - 1] || hoje
+      let startDate = filtro === '30dias' ? hoje : `${mesFiltro}-01`
+      if (filtro === 'tudo') startDate = sortedDates[0] || hoje
 
-      if (filtro === '30dias') {
-        startDateStr = hoje
-        endDateStr = calcularDataNDias(hoje, 29)
-      } else if (filtro === 'mes' && mesFiltro) {
-        startDateStr = `${mesFiltro}-01`
-        endDateStr = new Date(Number(mesFiltro.split('-')[0]), Number(mesFiltro.split('-')[1]), 0).toISOString().split('T')[0]
-      } else { // 'tudo'
-        startDateStr = hoje
-        endDateStr = lastDateStr > calcularDataNDias(hoje, 365) ? lastDateStr : calcularDataNDias(hoje, 365) // Mostra tudo, com pelo menos 1 ano pra frente
-      }
+      const visibleEntries = sortedDates.filter(date => date >= startDate)
 
-      // 8. Construir a série de caixa previsto para o período
-      const series: DiaCaixa[] = []
-      let saldoAcumulado = saldoAteOntem
-      const currentDate = new Date(`${startDateStr}T12:00:00`)
-      const finalDate = new Date(`${endDateStr}T12:00:00`)
-
-      while (currentDate <= finalDate) {
-        const dateStr = currentDate.toISOString().split('T')[0]
-        const { receitas, despesas } = groupedByDate[dateStr] || { receitas: 0, despesas: 0 }
+      let saldoAcumulado = saldoInicial
+      const series = visibleEntries.map(date => {
+        const { receitas, despesas } = groupedByDate[date]
         saldoAcumulado += receitas - despesas
-
-        // Adiciona à série apenas se houver movimentação ou se estiver dentro do range visível
-        if(receitas > 0 || despesas > 0 || dateStr >= hoje) {
-            series.push({
-              data: dateStr,
-              data_formatada: formatarDataParaExibicao(dateStr),
-              receitas,
-              despesas,
-              saldo_acumulado: saldoAcumulado,
-            })
+        return {
+          data: date,
+          data_formatada: formatarDataParaExibicao(date),
+          receitas,
+          despesas,
+          saldo_acumulado: saldoAcumulado,
         }
-        currentDate.setDate(currentDate.getDate() + 1)
-      }
+      })
 
-      setCaixaPrevistoGeral(series)
+      setCaixaPrevistoGeral(series);
 
     } catch (error) {
       console.error("Erro ao buscar dados do caixa universal:", error)
-      setCaixaPrevistoGeral([])
     } finally {
       setCarregando(false)
       setUltimaAtualizacao(Date.now())
