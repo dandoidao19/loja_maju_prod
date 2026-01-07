@@ -78,7 +78,7 @@ export default function Dashboard() {
   const getTitleBySection = () => {
     switch (activeSection) {
       case 'dashboard':
-        return '📊 Dashboard'
+        return '📊 Dashboard Principal'
       case 'casa':
         return '🏠 Módulo Casa'
       case 'loja':
