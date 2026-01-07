@@ -132,7 +132,7 @@ export default function Dashboard() {
           </div>
 
           {/* Conteúdo Dinâmico */}
-          {devFeaturesEnabled && activeSection === 'dashboard' && (
+          {isDevFeaturesEnabled && activeSection === 'dashboard' && (
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-1">
                 <ResumoCaixas />
