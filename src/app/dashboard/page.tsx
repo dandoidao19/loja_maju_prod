@@ -9,14 +9,12 @@ import ModuloCasa from '@/components/ModuloCasa'
 import ModuloConfiguracoes from '@/components/ModuloConfiguracoes'
 import ModuloLoja from '@/components/ModuloLoja'
 import { DadosFinanceirosProvider } from '@/context/DadosFinanceirosContext'
-import { isDevFeaturesEnabled } from '@/lib/envUtils'
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeSection, setActiveSection] = useState('casa') // Inicia em 'casa' para produção
+  const [activeSection, setActiveSection] = useState('dashboard') // Inicia em 'dashboard' por padrão
   const router = useRouter()
-  const devFeaturesEnabled = isDevFeaturesEnabled()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -46,20 +44,13 @@ export default function Dashboard() {
     )
   }
 
-  // Define itens do menu base
-  const menuItemsBase = [
+  // Define itens do menu
+  const menuItems = [
+    { id: 'dashboard', label: '📊 Dashboard', icon: '📊', color: 'blue' },
     { id: 'casa', label: '🏠 Casa', icon: '🏠', color: 'green' },
     { id: 'loja', label: '🏪 Loja', icon: '🏪', color: 'purple' },
     { id: 'configuracoes', label: '⚙️ Configurações', icon: '⚙️', color: 'gray' }
   ]
-
-  // Adiciona Dashboard apenas em desenvolvimento
-  const menuItems = devFeaturesEnabled 
-    ? [
-        { id: 'dashboard', label: '📊 Dashboard', icon: '📊', color: 'blue' },
-        ...menuItemsBase
-      ]
-    : menuItemsBase
 
   const getButtonStyle = (id: string, color: string) => {
     const isActive = activeSection === id
@@ -138,12 +129,12 @@ export default function Dashboard() {
           </div>
 
           {/* Conteúdo Dinâmico */}
-          {devFeaturesEnabled && activeSection === 'dashboard' && (
+          {activeSection === 'dashboard' && (
             <div>
               <ResumoCaixas />
             </div>
           )}
-          
+
           {activeSection === 'casa' && (
             <div>
               <ModuloCasa />
