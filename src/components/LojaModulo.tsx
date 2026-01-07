@@ -6,13 +6,13 @@ import LojaPaginaEstoque from './LojaPaginaEstoque'
 import LojaPaginaCompras from './LojaPaginaCompras'
 import LojaPaginaVendas from './LojaPaginaVendas'
 import ModuloCondicional from './ModuloCondicional'
-import { isDevelopment } from '@/lib/envUtils'
+import { isDevFeaturesEnabled } from '@/lib/envUtils'
 
 type AbaLoja = 'financeiro' | 'estoque' | 'vendas' | 'compras' | 'condicional'
 
 export default function LojaModulo() {
   const [abaAtiva, setAbaAtiva] = useState<AbaLoja>('financeiro')
-  const isDev = isDevelopment()
+  const devFeaturesEnabled = isDevFeaturesEnabled()
 
   // Define as abas base (sempre visíveis)
   const abasBase: { id: AbaLoja; titulo: string; icone: string }[] = [
@@ -23,7 +23,7 @@ export default function LojaModulo() {
   ]
 
   // Adiciona aba Condicional apenas em desenvolvimento
-  const abas = isDev
+  const abas = devFeaturesEnabled 
     ? [...abasBase, { id: 'condicional' as AbaLoja, titulo: 'Condicional', icone: '⚙️' }]
     : abasBase
 
@@ -39,7 +39,7 @@ export default function LojaModulo() {
         return <LojaPaginaCompras />
       case 'condicional':
         // Renderiza apenas se recursos de dev estiverem habilitados
-        return isDev ? <ModuloCondicional /> : null
+        return devFeaturesEnabled ? <ModuloCondicional /> : null
       default:
         return null
     }
