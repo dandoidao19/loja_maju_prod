@@ -61,7 +61,7 @@ export function useCaixaUniversal() {
         // 1. Buscar todas as transações de ambos os contextos
         const [transacoesLoja, lancamentosCasa] = await Promise.all([
             fetchAll('transacoes_loja', 'tipo, total, valor_pago, data, data_pagamento, status_pagamento', [], 'data'),
-            fetchAll('lancamentos_financeiros', 'tipo, valor, data_prevista, data_lancamento, status', [{ column: 'caixa_id', value: '69bebc06-f495-4fed-b0b1-beafb50c017b' }], 'data_prevista')
+            fetchAll('lancamentos_financeiros', 'tipo, valor, data_prevista, data_lancamento, status', [], 'data_prevista') // CORREÇÃO: Removido filtro fixo de caixa_id
         ]);
 
         // 2. Calcular o Caixa Real Geral (valor total, independente de data)
